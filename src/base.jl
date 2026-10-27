@@ -71,7 +71,9 @@ ucc_datatype_t(::Type{UInt128}) = UCC_DT_UINT128
 ucc_datatype_t(::Type{Float16}) = UCC_DT_FLOAT16
 ucc_datatype_t(::Type{Float32}) = UCC_DT_FLOAT32
 ucc_datatype_t(::Type{Float64}) = UCC_DT_FLOAT64
-ucc_datatype_t(::Type{Core.BFloat16}) = UCC_DT_BFLOAT16
+@static if isdefined(Core, :BFloat16)  # Julia 1.11+
+    ucc_datatype_t(::Type{Core.BFloat16}) = UCC_DT_BFLOAT16
+end
 ucc_datatype_t(::Type{ComplexF32}) = UCC_DT_FLOAT32_COMPLEX
 ucc_datatype_t(::Type{ComplexF64}) = UCC_DT_FLOAT64_COMPLEX
 ucc_datatype_t(::Type{Bool}) = UCC_DT_UINT8

@@ -44,17 +44,16 @@ end
 
 # UCC 1.8 can complete a reduction with an unsupported (type, op) pair
 # without reporting an error, so reject those up front.
+_op_supported(::Type, o::ucc_reduction_op_t) = o != UCC_OP_MAXLOC && o != UCC_OP_MINLOC
+_op_supported(::Type{<:AbstractFloat}, o::ucc_reduction_op_t) =  # includes Core.BFloat16 on Julia 1.11+
+    o in (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_MAX, UCC_OP_MIN, UCC_OP_AVG)
+_op_supported(::Type{<:Complex}, o::ucc_reduction_op_t) = o in (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_AVG)
+
 function _op(::Type{T}, op) where {T}
     o = ucc_reduction_op_t(op)
     haskey(_generic_datatypes, T) && return o  # reduction defined by the datatype
-    ok = if T <: Complex
-        o in (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_AVG)
-    elseif T <: AbstractFloat || T === Core.BFloat16
-        o in (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_MAX, UCC_OP_MIN, UCC_OP_AVG)
-    else
-        o != UCC_OP_MAXLOC && o != UCC_OP_MINLOC
-    end
-    ok || throw(ArgumentError("reduction $o is not supported for element type $T"))
+    _op_supported(T, o) ||
+        throw(ArgumentError("reduction $o is not supported for element type $T"))
     return o
 end
 
