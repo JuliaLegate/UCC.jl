@@ -77,7 +77,10 @@ _op_supported(::Type{Float16}, o, mem) =  # no CPU reduction
 function _op(buffer, op)
     T = eltype(buffer)
     o = ucc_reduction_op_t(op)
-    haskey(_generic_datatypes, T) && return o  # reduction defined by the datatype
+    if haskey(_generic_datatype_objs, T)  # reduction defined by the datatype
+        _generic_datatype_objs[T].op === nothing && throw(ArgumentError("$T was registered without an op"))
+        return o
+    end
     _op_supported(T, o, memory_type(buffer)) ||
         throw(ArgumentError("reduction $o is not supported for element type $T"))
     return o
