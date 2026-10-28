@@ -69,7 +69,7 @@ function get_event(ee::ExecutionEngine)
     ev = Ref{Ptr{ucc_ev_t}}(C_NULL)
     st = ucc_ee_get_event(ee, ev)
     st == UCC_ERR_NOT_FOUND && return nothing
-    check(st)
+    LibUCC.check(st)
     return ev[]
 end
 

@@ -6,7 +6,7 @@ include("libucc.jl")
 using .LibUCC
 
 include("base.jl")
-include("oob.jl")
+include("out_of_band.jl")
 include("library.jl")
 include("context.jl")
 include("team.jl")
@@ -14,7 +14,7 @@ include("request.jl")
 include("datatype.jl")
 include("collective.jl")
 include("memmap.jl")
-include("ee.jl")
+include("execution_engine.jl")
 
 """
     UCC.MPIOOB(comm::MPI.Comm) :: AbstractOOB

@@ -10,7 +10,7 @@
 # - `timeout`: fail with `UCC_ERR_TIMED_OUT` after this many seconds
 # - `tag`: collective tag used for ordering
 
-_datatype(::Type{T}) where {T} = get(() -> ucc_datatype_t(T), _generic_datatypes, T)
+_datatype(::Type{T}) where {T} = get(() -> _builtin_datatype(T), _generic_datatypes, T)
 
 function _info(buffer, count::Integer=length(buffer))
     _check_contiguous(buffer)
@@ -37,9 +37,30 @@ function _counts(counts, team::Team)
 end
 
 # default displacements: blocks packed back to back
+function _displs(::Nothing, counts::Vector{UInt64})
+    displs = similar(counts)
+    offset = UInt64(0)
+    for i in eachindex(counts)
+        displs[i] = offset
+        offset = Base.Checked.checked_add(offset, counts[i])
+    end
+    return displs
+end
+
 function _displs(displs, counts::Vector{UInt64})
-    displs === nothing || return UInt64[d for d in displs]
-    return UInt64[0; cumsum(counts)[1:end-1]]
+    length(displs) == length(counts) || throw(DimensionMismatch(
+        "expected $(length(counts)) displacements, got $(length(displs))"))
+    return UInt64[d for d in displs]
+end
+
+function _check_extent(buffer, counts, displs, name)
+    n = UInt64(length(buffer))
+    for (count, offset) in zip(counts, displs)
+        count == 0 && continue
+        offset <= n && count <= n - offset || throw(DimensionMismatch(
+            "$name is too short for count $count at displacement $offset"))
+    end
+    return nothing
 end
 
 # UCC 1.8 can complete a reduction with an unsupported (type, op) pair
@@ -134,8 +155,18 @@ end
 
 Copy `sendbuf` on rank `root` to `recvbuf` on all ranks. `sendbuf` is only
 used on `root`, and may be `nothing` elsewhere.
+
+The two-buffer form requires immediate, non-persistent posting. For
+`persistent=true` or `post=false` (including triggered posting), use
+`Ibroadcast!(recvbuf, team; ...)` and copy into `recvbuf` on the root before
+each post, after the previous operation has completed.
 """
-function Ibroadcast!(sendbuf, recvbuf, team::Team; root::Integer=0, kwargs...)
+function Ibroadcast!(sendbuf, recvbuf, team::Team; root::Integer=0,
+                     post::Bool=true, persistent::Bool=false, kwargs...)
+    (persistent || !post) && throw(ArgumentError(
+        "two-buffer broadcast does not support persistent=true or post=false; " *
+        "use Ibroadcast!(recvbuf, team; ...) and copyto!(recvbuf, sendbuf) on " *
+        "the root before each post, after the previous operation has completed"))
     if _isroot(team, root) && sendbuf !== recvbuf
         _check_length(sendbuf, length(recvbuf), "sendbuf")
         copyto!(recvbuf, sendbuf)
@@ -237,6 +268,7 @@ function Iallgatherv!(sendbuf, recvbuf, counts, team::Team; displs=nothing, kwar
     d = _displs(displs, c)
     _check_length(sendbuf, c[team.rank+1], "sendbuf")
     _check_eltypes(sendbuf, recvbuf)
+    _check_extent(recvbuf, c, d, "recvbuf")
     _collective(team, UCC_COLL_TYPE_ALLGATHERV;
                 src=_info(sendbuf), dst=_info_v(recvbuf, c, d),
                 buffers=(sendbuf, recvbuf, c, d), result=recvbuf, kwargs...)
@@ -300,6 +332,8 @@ function Ialltoallv!(sendbuf, sendcounts, recvbuf, recvcounts, team::Team;
     sd = _displs(sdispls, sc)
     rd = _displs(rdispls, rc)
     _check_eltypes(sendbuf, recvbuf)
+    _check_extent(sendbuf, sc, sd, "sendbuf")
+    _check_extent(recvbuf, rc, rd, "recvbuf")
     _collective(team, UCC_COLL_TYPE_ALLTOALLV;
                 src=_info_v(sendbuf, sc, sd), dst=_info_v(recvbuf, rc, rd),
                 buffers=(sendbuf, recvbuf, sc, sd, rc, rd), result=recvbuf, kwargs...)
@@ -388,6 +422,7 @@ function Igatherv!(sendbuf, recvbuf, counts, team::Team; root::Integer=0,
     _check_length(sendbuf, c[team.rank+1], "sendbuf")
     if _isroot(team, root)
         _check_eltypes(sendbuf, recvbuf)
+        _check_extent(recvbuf, c, d, "recvbuf")
         dst = _info_v(recvbuf, c, d)
     else
         dst = _info_v(nothing, sendbuf, c, d)
@@ -484,6 +519,7 @@ function Iscatterv!(sendbuf, counts, recvbuf, team::Team; root::Integer=0,
     _check_length(recvbuf, c[team.rank+1], "recvbuf")
     if _isroot(team, root)
         _check_eltypes(sendbuf, recvbuf)
+        _check_extent(sendbuf, c, d, "sendbuf")
         src = _info_v(sendbuf, c, d)
     else
         src = _info_v(nothing, recvbuf, c, d)
