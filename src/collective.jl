@@ -69,11 +69,16 @@ _op_supported(::Type, o::ucc_reduction_op_t) = o != UCC_OP_MAXLOC && o != UCC_OP
 _op_supported(::Type{<:AbstractFloat}, o::ucc_reduction_op_t) =  # includes Core.BFloat16 on Julia 1.11+
     o in (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_MAX, UCC_OP_MIN, UCC_OP_AVG)
 _op_supported(::Type{<:Complex}, o::ucc_reduction_op_t) = o in (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_AVG)
+_op_supported(::Type{<:Union{Int128,UInt128}}, ::ucc_reduction_op_t) = false
+_op_supported(T, o, mem) = _op_supported(T, o)
+_op_supported(::Type{Float16}, o, mem) =  # no CPU reduction
+    mem in (UCC_MEMORY_TYPE_CUDA, UCC_MEMORY_TYPE_CUDA_MANAGED) && _op_supported(AbstractFloat, o)
 
-function _op(::Type{T}, op) where {T}
+function _op(buffer, op)
+    T = eltype(buffer)
     o = ucc_reduction_op_t(op)
     haskey(_generic_datatypes, T) && return o  # reduction defined by the datatype
-    _op_supported(T, o) ||
+    _op_supported(T, o, memory_type(buffer)) ||
         throw(ArgumentError("reduction $o is not supported for element type $T"))
     return o
 end
@@ -113,7 +118,7 @@ function Iallreduce!(sendbuf, recvbuf, op, team::Team; kwargs...)
     _check_length(sendbuf, length(recvbuf), "sendbuf")
     _check_eltypes(sendbuf, recvbuf)
     _collective(team, UCC_COLL_TYPE_ALLREDUCE;
-                src=_info(sendbuf), dst=_info(recvbuf), op=_op(eltype(sendbuf), op),
+                src=_info(sendbuf), dst=_info(recvbuf), op=_op(sendbuf, op),
                 buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
 end
 
@@ -126,7 +131,7 @@ ranks.
 """
 function Iallreduce!(sendrecvbuf, op, team::Team; kwargs...)
     _collective(team, UCC_COLL_TYPE_ALLREDUCE;
-                src=_info(sendrecvbuf), dst=_info(sendrecvbuf), op=_op(eltype(sendrecvbuf), op),
+                src=_info(sendrecvbuf), dst=_info(sendrecvbuf), op=_op(sendrecvbuf, op),
                 flags=UCC_COLL_ARGS_FLAG_IN_PLACE,
                 buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
 end
@@ -197,7 +202,7 @@ function Ireduce!(sendbuf, recvbuf, op, team::Team; root::Integer=0, kwargs...)
         dst = recvbuf === nothing ? _info(nothing, sendbuf) : _info(recvbuf)
     end
     _collective(team, UCC_COLL_TYPE_REDUCE;
-                src=_info(sendbuf), dst, op=_op(eltype(sendbuf), op), root,
+                src=_info(sendbuf), dst, op=_op(sendbuf, op), root,
                 buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
 end
 
@@ -212,7 +217,7 @@ function Ireduce!(sendrecvbuf, op, team::Team; root::Integer=0, kwargs...)
     flags = _isroot(team, root) ? UCC_COLL_ARGS_FLAG_IN_PLACE : UInt64(0)
     _collective(team, UCC_COLL_TYPE_REDUCE;
                 src=_info(sendrecvbuf), dst=_info(sendrecvbuf),
-                op=_op(eltype(sendrecvbuf), op), root, flags,
+                op=_op(sendrecvbuf, op), root, flags,
                 buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
 end
 
@@ -455,7 +460,7 @@ function IreduceScatter!(sendbuf, recvbuf, op, team::Team; kwargs...)
     _check_length(sendbuf, length(recvbuf) * team.size, "sendbuf")
     _check_eltypes(sendbuf, recvbuf)
     _collective(team, UCC_COLL_TYPE_REDUCE_SCATTER;
-                src=_info(sendbuf), dst=_info(recvbuf), op=_op(eltype(sendbuf), op),
+                src=_info(sendbuf), dst=_info(recvbuf), op=_op(sendbuf, op),
                 buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
 end
 
@@ -478,7 +483,7 @@ function IreduceScatterv!(sendbuf, recvbuf, counts, op, team::Team; kwargs...)
     _check_eltypes(sendbuf, recvbuf)
     _collective(team, UCC_COLL_TYPE_REDUCE_SCATTERV;
                 src=_info(sendbuf), dst=_info_v(recvbuf, c, d),
-                op=_op(eltype(sendbuf), op),
+                op=_op(sendbuf, op),
                 buffers=(sendbuf, recvbuf, c, d), result=recvbuf, kwargs...)
 end
 
