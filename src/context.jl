@@ -21,7 +21,7 @@ end
 function ContextConfig(lib::Library; filename::Union{Nothing,AbstractString}=nothing)
     ref = Ref{ucc_context_config_h}(C_NULL)
     ucc_context_config_read(_alive(lib), _cstr(filename), ref)
-    return finalizer(_defer, ContextConfig(ref[], lib))
+    return finalizer(_defer, ContextConfig(ref[], _retain(lib)))
 end
 
 Base.unsafe_convert(::Type{ucc_context_config_h}, c::ContextConfig) = c.handle
@@ -32,6 +32,7 @@ function release(config::ContextConfig)
     if config.handle != C_NULL
         ucc_context_config_release(config)
         config.handle = C_NULL
+        _release(config.lib)
     end
     return nothing
 end
