@@ -67,7 +67,7 @@ function Team(ctx::Context, oob::AbstractOOB=_context_oob(ctx);
         something(id, 0)))
     ref = Ref{ucc_team_h}(C_NULL)
     GC.@preserve oob begin
-        ucc_team_create_post(Ref(ctx.handle), 1, params, ref)
+        ucc_team_create_post(Ref(_alive(ctx).handle), 1, params, ref)
         _team_create_wait(ctx, ref[])
     end
     return _team(ref[], ctx, oob)
@@ -119,7 +119,7 @@ that are not included get `nothing`.
 """
 function split(parent::Team, included::Bool)
     ref = Ref{ucc_team_h}(C_NULL)
-    ucc_team_create_from_parent(parent.rank, included, parent, ref)
+    ucc_team_create_from_parent(parent.rank, included, _alive(parent), ref)
     included || return nothing
     _team_create_wait(parent.ctx, ref[])
     return _team(ref[], parent.ctx, nothing)

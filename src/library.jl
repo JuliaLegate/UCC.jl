@@ -20,6 +20,8 @@ function _release(x::UCCObject)
     return
 end
 
+_alive(x::UCCObject) = @atomic(x.destroyed) ? throw(ArgumentError("$(nameof(typeof(x))) has been destroyed")) : x
+
 """
     UCC.destroy(x)
 

@@ -28,7 +28,7 @@ function _map_buffers(ctx::Context, buffers::Tuple; mode::ucc_mem_map_mode_t)
     params = Ref(ucc_mem_map_params_t(pointer(segments), length(segments)))
     memh_size = Ref{Csize_t}(0)
     memh = Ref{ucc_mem_map_mem_h}(C_NULL)
-    GC.@preserve buffers segments ucc_mem_map(ctx, mode, params, memh_size, memh)
+    GC.@preserve buffers segments ucc_mem_map(_alive(ctx), mode, params, memh_size, memh)
     return MemoryHandle(memh[], Int(memh_size[]), _retain(ctx), buffers)
 end
 
@@ -47,7 +47,7 @@ function MemoryHandle(ctx::Context, bytes::Vector{UInt8};
     memh_size = Ref{Csize_t}(length(bytes))
     params = Ref(ucc_mem_map_params_t(C_NULL, 0))
     try
-        ucc_mem_map(ctx, mode, params, memh_size, memh)
+        ucc_mem_map(_alive(ctx), mode, params, memh_size, memh)
     catch
         Libc.free(buf)
         rethrow()
