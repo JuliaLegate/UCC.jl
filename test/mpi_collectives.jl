@@ -7,6 +7,12 @@ using Test
 MPI.Init()
 include("collectives.jl")
 
+const TEST_CUDA = get(ENV, "UCC_TEST_CUDA", "false") == "true"
+if TEST_CUDA
+    using CUDA
+    CUDA.device!(MPI.Comm_rank(MPI.COMM_WORLD) % length(CUDA.devices()))  # one GPU per rank
+end
+
 ctx = UCC.Context(UCC.MPIOOB(MPI.COMM_WORLD))
 team = UCC.Team(ctx)
 @test UCC.rank(team) == MPI.Comm_rank(MPI.COMM_WORLD)
@@ -15,8 +21,7 @@ team = UCC.Team(ctx)
 test_collectives(team, Array)
 test_collectives(team, Array; T=Int64)
 
-if get(ENV, "UCC_TEST_CUDA", "false") == "true"
-    using CUDA
+if TEST_CUDA
     test_collectives(team, CuArray)
     test_collectives(team, CuArray; T=Float16)
 end
