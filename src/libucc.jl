@@ -38,6 +38,11 @@ function ucc_status_string(status)
     @ccall libucc.ucc_status_string(status::ucc_status_t)::Cstring
 end
 
+"""
+    UCCError(code::ucc_status_t)
+
+A UCC call returned the error status `code`.
+"""
 struct UCCError <: Exception
     code::ucc_status_t
 end

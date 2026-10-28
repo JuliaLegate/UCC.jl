@@ -1,0 +1,36 @@
+# Deploy docs for version tags. Kept separate from docs.yml so tag pushes are
+# not subject to the docs path filter (a tag tip often only bumps Project.toml).
+name: Docs (tags)
+on:
+  push:
+    tags:
+      - 'v*'
+  # gh workflow run "Docs (tags)" --ref vX.Y.Z
+  workflow_dispatch:
+jobs:
+  docs:
+    name: Documentation
+    if: ${{ !contains(toJSON(github.event), '[skip ci]') }}
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: read
+      statuses: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # all tags needed to pick `stable`
+          fetch-depth: 0
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+      - uses: julia-actions/cache@v2
+
+      - name: Instantiate docs environment
+        run: julia --color=yes --project=docs -e 'using Pkg; Pkg.instantiate()'
+      - name: Build documentation
+        run: julia --color=yes --project=docs docs/make.jl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
