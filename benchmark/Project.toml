@@ -1,0 +1,11 @@
+[deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+NCCL = "3fe64909-d7a1-4096-9b7d-7a0f12cf0f6b"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+UCC = "0824c2d4-b803-424a-b4f8-af0271084755"
+
+[sources]
+UCC = {path = ".."}
