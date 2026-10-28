@@ -38,7 +38,7 @@ end
 Import a memory handle that was exported (and serialized) by another rank.
 """
 function MemoryHandle(ctx::Context, bytes::Vector{UInt8};
-                      mode::ucc_mem_map_mode_t=UCC_MEM_MAP_MODE_IMPORT)
+                      mode::ucc_mem_map_mode_t=UCC_MEM_MAP_MODE_EXPORT)
     mode == UCC_MEM_MAP_MODE_EXPORT && return _map_buffers(ctx, (bytes,); mode)
     # on import UCC reads the user's handle from *memh and updates it in place
     buf = Libc.malloc(length(bytes))
