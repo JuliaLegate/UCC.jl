@@ -11,4 +11,4 @@ mpi() { julia --project=. -e "using MPI; run(\`\$(mpiexec()) -n $n \$(Base.julia
 
 mpi                                                     # UCC's choice
 UCC_CL_BASIC_TLS=ucp,nccl UCC_TL_NCCL_TUNE=cuda:inf mpi # force NCCL
-UCC_CL_BASIC_TLS=ucp,cuda UCC_TL_CUDA_TUNE=cuda:inf mpi # force TL/CUDA
+UCC_CL_BASIC_TLS=ucp,cuda UCC_TL_CUDA_TUNE=cuda:inf mpi # force TL/CUDA; falls back to UCP if GPUs lack NVLink
