@@ -181,6 +181,9 @@ end
     destroy_all(teams)
     UCC.destroy(dt)
     @test_throws ArgumentError UCC._builtin_datatype(Point)
+    dt = UCC.GenericDatatype(Point)
+    @test_throws ArgumentError UCC._op(Point[], +)
+    UCC.destroy(dt)
 end
 
 @testset "MPI" begin
