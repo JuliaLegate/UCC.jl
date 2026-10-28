@@ -18,6 +18,7 @@ test_collectives(team, Array; T=Int64)
 if get(ENV, "UCC_TEST_CUDA", "false") == "true"
     using CUDA
     test_collectives(team, CuArray)
+    test_collectives(team, CuArray; T=Float16)
 end
 
 MPI.Comm_rank(MPI.COMM_WORLD) == 0 && println("MPI collectives OK on ", UCC.size(team), " ranks")
