@@ -9,7 +9,7 @@ Collective communication for Julia on CPUs and GPUs, built on
 - **Blocking and nonblocking** (`I…`) collectives, including persistent and
   CUDA-stream-triggered requests.
 - **Bootstraps over MPI** or any transport you plug in.
-- **Full UCC 1.8 C API** in `UCC.LibUCC`.
+- **Low-level bindings** to the UCC C API in `UCC.LibUCC`.
 
 ## Installation
 
