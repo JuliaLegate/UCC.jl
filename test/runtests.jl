@@ -68,7 +68,9 @@ end
     test_collectives(team, Array)
     memh = UCC.MemoryHandle(ctx, zeros(UInt8, 64))
     @test memh.size > 0  # exported, not imported
-    UCC.destroy(memh)
+    finalize(memh)
+    UCC.free_deferred()
+    @test memh.handle == C_NULL
     @test_throws ArgumentError UCC.Allreduce!([true], +, team)
     @test_throws ArgumentError UCC.Allreduce!(Int128[1], +, team)
     @test_throws ArgumentError UCC.Allreduce!(Float16[1], +, team)
