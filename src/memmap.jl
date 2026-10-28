@@ -20,7 +20,10 @@ mutable struct MemoryHandle
     buffers::Any
 end
 
-function MemoryHandle(ctx::Context, buffers...; mode::ucc_mem_map_mode_t=UCC_MEM_MAP_MODE_EXPORT)
+MemoryHandle(ctx::Context, buffers...; mode::ucc_mem_map_mode_t=UCC_MEM_MAP_MODE_EXPORT) =
+    _map_buffers(ctx, buffers; mode)
+
+function _map_buffers(ctx::Context, buffers::Tuple; mode::ucc_mem_map_mode_t)
     segments = [ucc_mem_map_t(_ptr(b), sizeof(b)) for b in buffers]
     params = Ref(ucc_mem_map_params_t(pointer(segments), length(segments)))
     memh_size = Ref{Csize_t}(0)
@@ -36,6 +39,7 @@ Import a memory handle that was exported (and serialized) by another rank.
 """
 function MemoryHandle(ctx::Context, bytes::Vector{UInt8};
                       mode::ucc_mem_map_mode_t=UCC_MEM_MAP_MODE_IMPORT)
+    mode == UCC_MEM_MAP_MODE_EXPORT && return _map_buffers(ctx, (bytes,); mode)
     # on import UCC reads the user's handle from *memh and updates it in place
     buf = Libc.malloc(length(bytes))
     unsafe_copyto!(Ptr{UInt8}(buf), pointer(bytes), length(bytes))

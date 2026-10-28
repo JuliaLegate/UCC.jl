@@ -40,6 +40,13 @@ function test_collectives(team::UCC.Team, AT; T=Float64)
     y = AT(zeros(T, 3))
     UCC.Broadcast!(r == 0 ? s : nothing, y, team; root=0)
     @test host(y) == T[4, 5, 6]
+    # Unsupported options must fail on every rank, before copying into y.
+    for options in ((persistent=true,), (post=false,), (persistent=true, post=false))
+        y .= 0
+        @test_throws r"use Ibroadcast!.*copyto!" UCC.Ibroadcast!(
+            r == 0 ? s : nothing, y, team; root=0, options...)
+        @test host(y) == zeros(T, 3)
+    end
 
     # Reduce
     x = AT(fill(T(r + 1), 4))
@@ -147,17 +154,31 @@ function test_nonblocking(team, AT, T)
         yield()
     end
     @test host(y) == fill(T(n * (n + 1) ÷ 2), 3)
-    @test wait(UCC.Ibarrier(team)) === nothing
+    @test (@inferred wait(UCC.Ibarrier(team))) === nothing
 
     # Persistent
     x = AT(fill(T(1), 3))
     y = AT(zeros(T, 3))
     req = UCC.Iallreduce!(x, y, +, team; persistent=true)
-    @test wait(req) === y
+    @test (@inferred wait(req)) === y
+    @test req.buffers !== nothing
     @test host(y) == fill(T(n), 3)
     x .= 2
-    wait(UCC.post!(req))
+    @test (@inferred wait(UCC.post!(req))) === y
     @test host(y) == fill(T(2n), 3)
+    UCC.free(req)
+    @test req.buffers === nothing
+
+    # Single-buffer broadcast still supports delayed posting and persistence.
+    y = AT(zeros(T, 3))
+    req = UCC.Ibroadcast!(y, team; root=0, persistent=true, post=false)
+    for value in (T(7), T(8))
+        if r == 0
+            y .= value
+        end
+        @test (@inferred wait(UCC.post!(req))) === y
+        @test host(y) == fill(value, 3)
+    end
     UCC.free(req)
 
     # Errors

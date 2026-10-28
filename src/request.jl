@@ -16,11 +16,11 @@ Persistent requests (created with `persistent=true`) can be re-posted with
 # External links
 - `ucc_collective_post`, `ucc_collective_test`, `ucc_collective_finalize`
 """
-mutable struct Request
+mutable struct Request{R,B<:Tuple}
     handle::ucc_coll_req_h
     team::Team
-    buffers::Any       # rooted until the request is freed
-    result::Any        # returned by `wait`
+    buffers::Union{Nothing,B}  # rooted until the request is freed
+    result::R                 # returned by `wait`
     persistent::Bool
     posted::Bool
 end
@@ -62,11 +62,11 @@ function test(req::Request)
     req.handle == C_NULL && return true
     req.posted || throw(ArgumentError("request has not been posted"))
     st = ucc_collective_test(req.handle)
-    if st == UCC_INPROGRESS
+    if st in (UCC_OPERATION_INITIALIZED, UCC_INPROGRESS)
         ucc_context_progress(req.team.ctx)
         st = ucc_collective_test(req.handle)
     end
-    st == UCC_INPROGRESS && return false
+    st in (UCC_OPERATION_INITIALIZED, UCC_INPROGRESS) && return false
     if Int32(st) < 0
         free(req)
         throw(UCCError(st))
@@ -101,7 +101,7 @@ function free(req::Request)
     if req.handle != C_NULL
         ucc_collective_finalize(req)
         req.handle = C_NULL
-        req.buffers = ()
+        req.buffers = nothing
     end
     return nothing
 end

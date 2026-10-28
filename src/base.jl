@@ -27,7 +27,7 @@ Get the version string of the loaded UCC library.
 """
 version_string() = unsafe_string(ucc_get_version_string())
 
-import .LibUCC: ucc_reduction_op_t, ucc_datatype_t, ucc_memory_type_t
+import .LibUCC: ucc_reduction_op_t, ucc_memory_type_t
 
 ucc_reduction_op_t(::typeof(+)) = UCC_OP_SUM
 ucc_reduction_op_t(::typeof(*)) = UCC_OP_PROD
@@ -58,26 +58,26 @@ const lxor = UCC_OP_LXOR
 @doc (@doc land) lor
 @doc (@doc land) lxor
 
-ucc_datatype_t(::Type{Int8}) = UCC_DT_INT8
-ucc_datatype_t(::Type{Int16}) = UCC_DT_INT16
-ucc_datatype_t(::Type{Int32}) = UCC_DT_INT32
-ucc_datatype_t(::Type{Int64}) = UCC_DT_INT64
-ucc_datatype_t(::Type{Int128}) = UCC_DT_INT128
-ucc_datatype_t(::Type{UInt8}) = UCC_DT_UINT8
-ucc_datatype_t(::Type{UInt16}) = UCC_DT_UINT16
-ucc_datatype_t(::Type{UInt32}) = UCC_DT_UINT32
-ucc_datatype_t(::Type{UInt64}) = UCC_DT_UINT64
-ucc_datatype_t(::Type{UInt128}) = UCC_DT_UINT128
-ucc_datatype_t(::Type{Float16}) = UCC_DT_FLOAT16
-ucc_datatype_t(::Type{Float32}) = UCC_DT_FLOAT32
-ucc_datatype_t(::Type{Float64}) = UCC_DT_FLOAT64
+_builtin_datatype(::Type{Int8}) = UCC_DT_INT8
+_builtin_datatype(::Type{Int16}) = UCC_DT_INT16
+_builtin_datatype(::Type{Int32}) = UCC_DT_INT32
+_builtin_datatype(::Type{Int64}) = UCC_DT_INT64
+_builtin_datatype(::Type{Int128}) = UCC_DT_INT128
+_builtin_datatype(::Type{UInt8}) = UCC_DT_UINT8
+_builtin_datatype(::Type{UInt16}) = UCC_DT_UINT16
+_builtin_datatype(::Type{UInt32}) = UCC_DT_UINT32
+_builtin_datatype(::Type{UInt64}) = UCC_DT_UINT64
+_builtin_datatype(::Type{UInt128}) = UCC_DT_UINT128
+_builtin_datatype(::Type{Float16}) = UCC_DT_FLOAT16
+_builtin_datatype(::Type{Float32}) = UCC_DT_FLOAT32
+_builtin_datatype(::Type{Float64}) = UCC_DT_FLOAT64
 @static if isdefined(Core, :BFloat16)  # Julia 1.11+
-    ucc_datatype_t(::Type{Core.BFloat16}) = UCC_DT_BFLOAT16
+    _builtin_datatype(::Type{Core.BFloat16}) = UCC_DT_BFLOAT16
 end
-ucc_datatype_t(::Type{ComplexF32}) = UCC_DT_FLOAT32_COMPLEX
-ucc_datatype_t(::Type{ComplexF64}) = UCC_DT_FLOAT64_COMPLEX
-ucc_datatype_t(::Type{Bool}) = UCC_DT_UINT8
-ucc_datatype_t(::Type{T}) where {T} = throw(ArgumentError(
+_builtin_datatype(::Type{ComplexF32}) = UCC_DT_FLOAT32_COMPLEX
+_builtin_datatype(::Type{ComplexF64}) = UCC_DT_FLOAT64_COMPLEX
+_builtin_datatype(::Type{Bool}) = UCC_DT_UINT8
+_builtin_datatype(::Type{T}) where {T} = throw(ArgumentError(
     "no UCC datatype for $T; see `UCC.GenericDatatype` for user-defined types"))
 
 """
