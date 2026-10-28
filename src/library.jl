@@ -14,11 +14,12 @@ function _retain(x::UCCObject)
 end
 
 function _release(x::UCCObject)
-    if (@atomic x.refs -= 1) == 0 && @atomic(x.destroyed)
-        _free(x)
-    end
+    (@atomic x.refs -= 1) == 0 && @atomic(x.destroyed) && _free_once(x)
     return
 end
+
+# destroy and the last release can race; only the caller that claims refs frees
+_free_once(x::UCCObject) = (@atomicreplace x.refs 0 => -1).success && _free(x)
 
 _alive(x::UCCObject) = @atomic(x.destroyed) ? throw(ArgumentError("$(nameof(typeof(x))) has been destroyed")) : x
 
@@ -31,7 +32,7 @@ its children have been destroyed as well.
 """
 function destroy(x::UCCObject)
     _, ok = @atomicreplace x.destroyed false => true
-    ok && @atomic(x.refs) == 0 && _free(x)
+    ok && _free_once(x)
     return nothing
 end
 
