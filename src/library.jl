@@ -70,6 +70,8 @@ Release the UCC resources of objects that were garbage collected without an
 explicit [`UCC.destroy`](@ref). Finalizers never call into UCC themselves (they
 may run on any thread, concurrently with UCC calls elsewhere), so call this
 from the task that drives UCC, while no other thread is using UCC.
+
+Dropped collectives that are still in flight stay deferred until they complete.
 """
 function free_deferred()
     @atomic(_deferred.head) === nothing && return

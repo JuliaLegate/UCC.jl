@@ -13,6 +13,9 @@ Persistent requests (created with `persistent=true`) can be re-posted with
 [`UCC.post!`](@ref) after completing, and must be released with
 [`UCC.free`](@ref).
 
+A dropped request keeps its buffers alive until [`UCC.free_deferred`](@ref)
+releases it after completion.
+
 # External links
 - `ucc_collective_post`, `ucc_collective_test`, `ucc_collective_finalize`
 """
@@ -106,6 +109,21 @@ function free(req::Request)
     return nothing
 end
 
+_defer_request(req::Request) = req.handle == C_NULL || _defer(req)
+
+# an in-flight request is re-deferred, keeping its buffers alive
+function destroy(req::Request)
+    req.handle == C_NULL && return nothing
+    if req.posted && _inflight(req)
+        ucc_context_progress(req.team.ctx)
+        _inflight(req) && return _defer(req)
+    end
+    free(req)
+    return nothing
+end
+
+_inflight(req::Request) = ucc_collective_test(req.handle) in (UCC_OPERATION_INITIALIZED, UCC_INPROGRESS)
+
 const _no_buffer = ucc_coll_buffer_info_u()
 const _no_active_set = LibUCC.ucc_coll_args_active_set(0, 0, 0)
 
@@ -135,7 +153,7 @@ function _collective(team::Team, coll_type::ucc_coll_type_t;
                                something(timeout, 0.0), _no_active_set, C_NULL, C_NULL))
     ref = Ref{ucc_coll_req_h}(C_NULL)
     GC.@preserve buffers ucc_collective_init(args, ref, team)
-    req = Request(ref[], team, buffers, result, persistent, false)
+    req = finalizer(_defer_request, Request(ref[], team, buffers, result, persistent, false))
     if post
         try
             post!(req)

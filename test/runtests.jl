@@ -115,6 +115,21 @@ end
     destroy_all(teams)
 end
 
+@testset "dropped in-flight request" begin
+    teams = local_teams(2)
+    req = UCC.Iallreduce!(ones(4), zeros(4), +, teams[1])
+    finalize(req)
+    UCC.free_deferred()
+    @test req.handle != C_NULL  # other rank hasn't joined: stays deferred
+    other = UCC.Iallreduce!(ones(4), zeros(4), +, teams[2])
+    while req.handle != C_NULL
+        UCC.test(other)
+        UCC.free_deferred()
+    end
+    @test req.result == fill(2.0, 4)
+    destroy_all(teams)
+end
+
 struct Point
     x::Int32
     y::Int32
