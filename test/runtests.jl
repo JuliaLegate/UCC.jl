@@ -97,6 +97,12 @@ end
     @test_throws ArgumentError UCC.Context(; lib)
     UCC.destroy(ctx)
     @test lib.handle == C_NULL
+    lib = UCC.Library()
+    cfg = UCC.ContextConfig(lib)
+    UCC.destroy(lib)
+    @test lib.handle != C_NULL
+    UCC.release(cfg)
+    @test lib.handle == C_NULL
 end
 
 @testset "in-process ranks (n=$n)" for n in (2, 3)
