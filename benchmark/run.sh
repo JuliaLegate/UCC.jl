@@ -11,7 +11,8 @@ rm -f $out
 julia --project=. -e 'using Pkg; Pkg.instantiate()'
 for n in $(seq 1 "$N"); do
     for b in nccl ucc_nccl ucc_ucp; do
-        julia --project=. -e "using MPI; run(\`\$(mpiexec()) -n $n \$(Base.julia_cmd()) --project=. allreduce.jl $b $out\`)"
+        julia --project=. -e "using MPI; run(\`\$(mpiexec()) -n $n \$(Base.julia_cmd()) --project=. allreduce.jl $b $out\`)" ||
+            echo "$b on $n GPUs failed; continuing"
     done
 done
 julia --project=. plot.jl $out
