@@ -126,24 +126,26 @@ function destroy(req::Request)
     return nothing
 end
 
-_inflight(req::Request) = ucc_collective_test(req.handle) in (UCC_OPERATION_INITIALIZED, UCC_INPROGRESS)
+function _inflight(req::Request)
+    return ucc_collective_test(req.handle) in (UCC_OPERATION_INITIALIZED, UCC_INPROGRESS)
+end
 
 const _no_buffer = ucc_coll_buffer_info_u()
 const _no_active_set = LibUCC.ucc_coll_args_active_set(0, 0, 0)
 
 # Initialize (and by default post) a collective on `team`.
 function _collective(team::Team, coll_type::ucc_coll_type_t;
-                     src::ucc_coll_buffer_info_u=_no_buffer,
-                     dst::ucc_coll_buffer_info_u=_no_buffer,
-                     op::ucc_reduction_op_t=UCC_OP_SUM,
-                     root::Integer=0,
-                     flags::UInt64=UInt64(0),
-                     buffers::Tuple=(),
-                     result=nothing,
-                     post::Bool=true,
-                     persistent::Bool=false,
-                     timeout::Union{Nothing,Real}=nothing,
-                     tag::Union{Nothing,Integer}=nothing)
+    src::ucc_coll_buffer_info_u=_no_buffer,
+    dst::ucc_coll_buffer_info_u=_no_buffer,
+    op::ucc_reduction_op_t=UCC_OP_SUM,
+    root::Integer=0,
+    flags::UInt64=UInt64(0),
+    buffers::Tuple=(),
+    result=nothing,
+    post::Bool=true,
+    persistent::Bool=false,
+    timeout::Union{Nothing,Real}=nothing,
+    tag::Union{Nothing,Integer}=nothing)
     _alive(team)
     0 <= root < team.size || throw(ArgumentError("root must be in [0, $(team.size))"))
     mask = UCC_COLL_ARGS_FIELD_FLAGS
@@ -151,14 +153,16 @@ function _collective(team::Team, coll_type::ucc_coll_type_t;
     persistent && (flags |= UCC_COLL_ARGS_FLAG_PERSISTENT)
     timeout === nothing || (flags |= UCC_COLL_ARGS_FLAG_TIMEOUT)
     tag === nothing || (mask |= UCC_COLL_ARGS_FIELD_TAG)
-    args = Ref(ucc_coll_args_t(mask, coll_type, src, dst, op, flags, root,
-                               UCC_ERR_TYPE_LOCAL, something(tag, 0), C_NULL,
-                               ucc_coll_callback_t(C_NULL, C_NULL),
-                               something(timeout, 0.0), _no_active_set, C_NULL, C_NULL))
+    args = Ref(
+        ucc_coll_args_t(mask, coll_type, src, dst, op, flags, root,
+            UCC_ERR_TYPE_LOCAL, something(tag, 0), C_NULL,
+            ucc_coll_callback_t(C_NULL, C_NULL),
+            something(timeout, 0.0), _no_active_set, C_NULL, C_NULL),
+    )
     ref = Ref{ucc_coll_req_h}(C_NULL)
     GC.@preserve buffers ucc_collective_init(args, ref, team)
     req = finalizer(_defer_request,
-                    Request(ref[], _retain(team), buffers, result, persistent, false, nothing))
+        Request(ref[], _retain(team), buffers, result, persistent, false, nothing))
     if post
         try
             post!(req)

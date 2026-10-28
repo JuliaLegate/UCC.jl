@@ -15,13 +15,19 @@ end
 
 function _release(x::UCCObject)
     (@atomic x.refs -= 1) == 0 && @atomic(x.destroyed) && _free_once(x)
-    return
+    return nothing
 end
 
 # destroy and the last release can race; only the caller that claims refs frees
 _free_once(x::UCCObject) = (@atomicreplace x.refs 0 => -1).success && _free(x)
 
-_alive(x::UCCObject) = @atomic(x.destroyed) ? throw(ArgumentError("$(nameof(typeof(x))) has been destroyed")) : x
+function _alive(x::UCCObject)
+    return if @atomic(x.destroyed)
+        throw(ArgumentError("$(nameof(typeof(x))) has been destroyed"))
+    else
+        x
+    end
+end
 
 """
     UCC.destroy(x)
@@ -62,7 +68,7 @@ function _defer(x)
     head = @atomic _deferred.head
     while true
         head, ok = @atomicreplace _deferred.head head => DeferredNode(x, head)
-        ok && return
+        ok && return nothing
     end
 end
 
@@ -77,13 +83,15 @@ from the task that drives UCC, while no other thread is using UCC.
 Dropped collectives that are still in flight stay deferred until they complete.
 """
 function free_deferred()
-    @atomic(_deferred.head) === nothing && return
+    @atomic(_deferred.head) === nothing && return nothing
     node = @atomicswap _deferred.head = nothing
     while node !== nothing
         try
             destroy(node.obj)
         catch err
-            @error "UCC: error while freeing $(typeof(node.obj))" exception = (err, catch_backtrace())
+            @error "UCC: error while freeing $(typeof(node.obj))" exception = (
+                err, catch_backtrace()
+            )
         end
         node = node.next
     end
@@ -104,7 +112,7 @@ mutable struct LibraryConfig
 end
 
 function LibraryConfig(; env_prefix::Union{Nothing,AbstractString}=nothing,
-                       filename::Union{Nothing,AbstractString}=nothing)
+    filename::Union{Nothing,AbstractString}=nothing)
     ref = Ref{ucc_lib_config_h}(C_NULL)
     ucc_lib_config_read(_cstr(env_prefix), _cstr(filename), ref)
     return finalizer(_defer, LibraryConfig(ref[]))
@@ -127,16 +135,20 @@ function Base.setindex!(config::LibraryConfig, value, name::AbstractString)
     return config
 end
 
-Base.show(io::IO, ::MIME"text/plain", config::LibraryConfig) =
-    print(io, _config_string((s, t, f) -> ucc_lib_config_print(config, s, t, f),
-                             "UCC library configuration"))
+function Base.show(io::IO, ::MIME"text/plain", config::LibraryConfig)
+    return print(
+        io,
+        _config_string((s, t, f) -> ucc_lib_config_print(config, s, t, f),
+            "UCC library configuration"),
+    )
+end
 
 _cstr(::Nothing) = Ptr{Cchar}(C_NULL)
 _cstr(s::AbstractString) = s
 
 # capture the output of a `ucc_*_config_print(…, FILE *stream, …)` call
 function _config_string(print_fn, title;
-                        flags=UCC_CONFIG_PRINT_CONFIG | UCC_CONFIG_PRINT_HEADER)
+    flags=UCC_CONFIG_PRINT_CONFIG | UCC_CONFIG_PRINT_HEADER)
     mktemp() do path, io
         close(io)
         stream = ccall(:fopen, Ptr{Cvoid}, (Cstring, Cstring), path, "w")
@@ -146,12 +158,13 @@ function _config_string(print_fn, title;
         finally
             ccall(:fclose, Cint, (Ptr{Cvoid},), stream)
         end
-        read(path, String)
+        return read(path, String)
     end
 end
 
-Base.:(|)(a::ucc_config_print_flags_t, b::ucc_config_print_flags_t) =
-    ucc_config_print_flags_t(UInt32(a) | UInt32(b))
+function Base.:(|)(a::ucc_config_print_flags_t, b::ucc_config_print_flags_t)
+    return ucc_config_print_flags_t(UInt32(a) | UInt32(b))
+end
 
 """
     UCC.Library(; thread_mode, coll_types, reduction_types, sync_type,
@@ -180,24 +193,26 @@ function _thread_mode(mode::Symbol)
     mode === :single && return UCC_THREAD_SINGLE
     mode === :funneled && return UCC_THREAD_FUNNELED
     mode === :multiple && return UCC_THREAD_MULTIPLE
-    throw(ArgumentError("unknown thread mode $(repr(mode))"))
+    return throw(ArgumentError("unknown thread mode $(repr(mode))"))
 end
 
 function Library(; thread_mode::Union{Nothing,Symbol,ucc_thread_mode_t}=nothing,
-                 coll_types::Union{Nothing,Integer}=nothing,
-                 reduction_types::Union{Nothing,Integer}=nothing,
-                 sync_type::Union{Nothing,ucc_coll_sync_type_t}=nothing,
-                 config::Union{Nothing,LibraryConfig}=nothing)
+    coll_types::Union{Nothing,Integer}=nothing,
+    reduction_types::Union{Nothing,Integer}=nothing,
+    sync_type::Union{Nothing,ucc_coll_sync_type_t}=nothing,
+    config::Union{Nothing,LibraryConfig}=nothing)
     mask = UInt64(0)
     thread_mode === nothing || (mask |= UCC_LIB_PARAM_FIELD_THREAD_MODE)
     coll_types === nothing || (mask |= UCC_LIB_PARAM_FIELD_COLL_TYPES)
     reduction_types === nothing || (mask |= UCC_LIB_PARAM_FIELD_REDUCTION_TYPES)
     sync_type === nothing || (mask |= UCC_LIB_PARAM_FIELD_SYNC_TYPE)
-    params = Ref(ucc_lib_params_t(mask,
-                                  _thread_mode(something(thread_mode, :single)),
-                                  something(coll_types, 0),
-                                  something(reduction_types, 0),
-                                  something(sync_type, UCC_NO_SYNC_COLLECTIVES)))
+    params = Ref(
+        ucc_lib_params_t(mask,
+            _thread_mode(something(thread_mode, :single)),
+            something(coll_types, 0),
+            something(reduction_types, 0),
+            something(sync_type, UCC_NO_SYNC_COLLECTIVES)),
+    )
     # UCC requires a configuration; read the default (environment) one if needed
     cfg = config === nothing ? LibraryConfig() : config
     ref = Ref{ucc_lib_h}(C_NULL)
@@ -231,7 +246,7 @@ Query the attributes of `lib` selected by `mask` (by default the thread mode and
 supported collective types; UCC 1.8 does not report reduction or sync types).
 """
 function attributes(lib::Library;
-                    mask=UCC_LIB_ATTR_FIELD_THREAD_MODE | UCC_LIB_ATTR_FIELD_COLL_TYPES)
+    mask=UCC_LIB_ATTR_FIELD_THREAD_MODE | UCC_LIB_ATTR_FIELD_COLL_TYPES)
     attr = Ref(ucc_lib_attr_t(mask, UCC_THREAD_SINGLE, 0, 0, UCC_NO_SYNC_COLLECTIVES))
     ucc_lib_get_attr(lib, attr)
     return attr[]

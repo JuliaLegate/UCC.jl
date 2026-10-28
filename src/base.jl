@@ -17,7 +17,7 @@ function version()
     minor = Ref{Cuint}()
     release = Ref{Cuint}()
     ucc_get_version(major, minor, release)
-    VersionNumber(major[], minor[], release[])
+    return VersionNumber(major[], minor[], release[])
 end
 
 """
@@ -77,8 +77,12 @@ end
 _builtin_datatype(::Type{ComplexF32}) = UCC_DT_FLOAT32_COMPLEX
 _builtin_datatype(::Type{ComplexF64}) = UCC_DT_FLOAT64_COMPLEX
 _builtin_datatype(::Type{Bool}) = UCC_DT_UINT8
-_builtin_datatype(::Type{T}) where {T} = throw(ArgumentError(
-    "no UCC datatype for $T; see `UCC.GenericDatatype` for user-defined types"))
+function _builtin_datatype(::Type{T}) where {T}
+    return throw(
+        ArgumentError(
+            "no UCC datatype for $T; see `UCC.GenericDatatype` for user-defined types"),
+    )
+end
 
 """
     UCC.memory_type(buffer) :: LibUCC.ucc_memory_type_t
@@ -117,10 +121,12 @@ _ptr(::Nothing) = C_NULL
 _ptr(buffer) = reinterpret(Ptr{Cvoid}, pointer(buffer))
 
 function _check_contiguous(buffer)
-    buffer === nothing && return
+    buffer === nothing && return nothing
     if !(buffer isa DenseArray) &&
-       !(applicable(strides, buffer) &&
-         strides(buffer) == Base.size_to_strides(1, Base.size(buffer)...))
+        !(
+        applicable(strides, buffer) &&
+        strides(buffer) == Base.size_to_strides(1, Base.size(buffer)...)
+    )
         throw(ArgumentError("UCC buffers must be contiguous; got $(typeof(buffer))"))
     end
 end

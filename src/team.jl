@@ -42,29 +42,31 @@ mutable struct Team <: UCCObject
 end
 
 function Team(ctx::Context, oob::AbstractOOB=_context_oob(ctx);
-              ordering::Union{Nothing,ucc_post_ordering_t}=nothing,
-              outstanding_colls::Union{Nothing,Integer}=nothing,
-              sync_type::Union{Nothing,ucc_coll_sync_type_t}=nothing,
-              id::Union{Nothing,Integer}=nothing)
+    ordering::Union{Nothing,ucc_post_ordering_t}=nothing,
+    outstanding_colls::Union{Nothing,Integer}=nothing,
+    sync_type::Union{Nothing,ucc_coll_sync_type_t}=nothing,
+    id::Union{Nothing,Integer}=nothing)
     mask = UCC_TEAM_PARAM_FIELD_OOB | UCC_TEAM_PARAM_FIELD_EP | UCC_TEAM_PARAM_FIELD_EP_RANGE
     ordering === nothing || (mask |= UCC_TEAM_PARAM_FIELD_ORDERING)
     outstanding_colls === nothing || (mask |= UCC_TEAM_PARAM_FIELD_OUTSTANDING_COLLS)
     sync_type === nothing || (mask |= UCC_TEAM_PARAM_FIELD_SYNC_TYPE)
     id === nothing || (mask |= UCC_TEAM_PARAM_FIELD_ID)
-    params = Ref(ucc_team_params_t(
-        mask, 0,
-        something(ordering, UCC_COLLECTIVE_POST_ORDERED),
-        something(outstanding_colls, 0),
-        oob_rank(oob),
-        C_NULL,
-        UCC_COLLECTIVE_EP_RANGE_CONTIG,
-        oob_size(oob),
-        something(sync_type, UCC_NO_SYNC_COLLECTIVES),
-        _oob_coll(oob),
-        ucc_team_p2p_conn_t(C_NULL, C_NULL, C_NULL, C_NULL, C_NULL),
-        ucc_mem_map_params_t(C_NULL, 0),
-        LibUCC.ucc_ep_map_t(UCC_EP_MAP_FULL, 0),
-        something(id, 0)))
+    params = Ref(
+        ucc_team_params_t(
+            mask, 0,
+            something(ordering, UCC_COLLECTIVE_POST_ORDERED),
+            something(outstanding_colls, 0),
+            oob_rank(oob),
+            C_NULL,
+            UCC_COLLECTIVE_EP_RANGE_CONTIG,
+            oob_size(oob),
+            something(sync_type, UCC_NO_SYNC_COLLECTIVES),
+            _oob_coll(oob),
+            ucc_team_p2p_conn_t(C_NULL, C_NULL, C_NULL, C_NULL, C_NULL),
+            ucc_mem_map_params_t(C_NULL, 0),
+            LibUCC.ucc_ep_map_t(UCC_EP_MAP_FULL, 0),
+            something(id, 0)),
+    )
     ref = Ref{ucc_team_h}(C_NULL)
     GC.@preserve oob begin
         ucc_team_create_post(Ref(_alive(ctx).handle), 1, params, ref)
@@ -113,11 +115,13 @@ end
 Query the attributes of `team`.
 """
 function attributes(team::Team;
-                    mask=UCC_TEAM_ATTR_FIELD_POST_ORDERING | UCC_TEAM_ATTR_FIELD_EP |
-                         UCC_TEAM_ATTR_FIELD_SYNC_TYPE | UCC_TEAM_ATTR_FIELD_SIZE)
-    attr = Ref(ucc_team_attr_t(mask, UCC_COLLECTIVE_POST_ORDERED, 0, 0,
-                               UCC_COLLECTIVE_EP_RANGE_CONTIG, UCC_NO_SYNC_COLLECTIVES,
-                               ucc_mem_map_params_t(C_NULL, 0), 0, C_NULL))
+    mask=UCC_TEAM_ATTR_FIELD_POST_ORDERING | UCC_TEAM_ATTR_FIELD_EP |
+         UCC_TEAM_ATTR_FIELD_SYNC_TYPE | UCC_TEAM_ATTR_FIELD_SIZE)
+    attr = Ref(
+        ucc_team_attr_t(mask, UCC_COLLECTIVE_POST_ORDERED, 0, 0,
+            UCC_COLLECTIVE_EP_RANGE_CONTIG, UCC_NO_SYNC_COLLECTIVES,
+            ucc_mem_map_params_t(C_NULL, 0), 0, C_NULL),
+    )
     ucc_team_get_attr(team, attr)
     return attr[]
 end
@@ -143,6 +147,7 @@ The context `team` was created on.
 """
 context(team::Team) = team.ctx
 
-Base.show(io::IO, team::Team) =
-    print(io, "UCC.Team(rank=", team.rank, ", size=", team.size,
-          team.handle == C_NULL ? ", destroyed" : "", ")")
+function Base.show(io::IO, team::Team)
+    return print(io, "UCC.Team(rank=", team.rank, ", size=", team.size,
+        team.handle == C_NULL ? ", destroyed" : "", ")")
+end

@@ -14,7 +14,7 @@ end
 # the task-local stream must have completed first.
 function UCC.synchronize_buffer(buffer::CuArray)
     CUDACore.device!(CUDACore.device(buffer)) do
-        CUDACore.synchronize()
+        return CUDACore.synchronize()
     end
 end
 
@@ -26,8 +26,8 @@ Create a UCC execution engine for the CUDA `stream`, for use with
 """
 function UCC.ExecutionEngine(team::UCC.Team, stream::CuStream=CUDACore.stream())
     handle = Base.unsafe_convert(CUDACore.CUstream, stream)
-    UCC.ExecutionEngine(team, UCC_EE_CUDA_STREAM, Ptr{Cvoid}(UInt(handle)),
-                        sizeof(CUDACore.CUstream); root=stream)
+    return UCC.ExecutionEngine(team, UCC_EE_CUDA_STREAM, Ptr{Cvoid}(UInt(handle)),
+        sizeof(CUDACore.CUstream); root=stream)
 end
 
 end # module UCCCUDAExt

@@ -20,8 +20,9 @@ mutable struct MemoryHandle
     buffers::Any
 end
 
-MemoryHandle(ctx::Context, buffers...; mode::ucc_mem_map_mode_t=UCC_MEM_MAP_MODE_EXPORT) =
-    _map_buffers(ctx, buffers; mode)
+function MemoryHandle(ctx::Context, buffers...; mode::ucc_mem_map_mode_t=UCC_MEM_MAP_MODE_EXPORT)
+    return _map_buffers(ctx, buffers; mode)
+end
 
 function _map_buffers(ctx::Context, buffers::Tuple; mode::ucc_mem_map_mode_t)
     segments = [ucc_mem_map_t(_ptr(b), sizeof(b)) for b in buffers]
@@ -38,7 +39,7 @@ end
 Import a memory handle that was exported (and serialized) by another rank.
 """
 function MemoryHandle(ctx::Context, bytes::Vector{UInt8};
-                      mode::ucc_mem_map_mode_t=UCC_MEM_MAP_MODE_EXPORT)
+    mode::ucc_mem_map_mode_t=UCC_MEM_MAP_MODE_EXPORT)
     mode == UCC_MEM_MAP_MODE_EXPORT && return _map_buffers(ctx, (bytes,); mode)
     # on import UCC reads the user's handle from *memh and updates it in place
     buf = Libc.malloc(length(bytes))
@@ -55,8 +56,9 @@ function MemoryHandle(ctx::Context, bytes::Vector{UInt8};
     return finalizer(_defer, MemoryHandle(memh[], Int(memh_size[]), _retain(ctx), bytes))
 end
 
-Base.Vector{UInt8}(memh::MemoryHandle) =
-    copy(unsafe_wrap(Array, Ptr{UInt8}(memh.handle), memh.size))
+function Base.Vector{UInt8}(memh::MemoryHandle)
+    return copy(unsafe_wrap(Array, Ptr{UInt8}(memh.handle), memh.size))
+end
 
 function destroy(memh::MemoryHandle)
     if memh.handle != C_NULL
