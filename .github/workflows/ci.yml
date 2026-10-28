@@ -3,9 +3,8 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches:
+    branches:  # other branches are tested through pull_request
       - main
-      - develop
     tags:
       - 'v*'
     paths: &paths
