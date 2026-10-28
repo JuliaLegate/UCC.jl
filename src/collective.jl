@@ -69,6 +69,7 @@ _op_supported(::Type, o::ucc_reduction_op_t) = o != UCC_OP_MAXLOC && o != UCC_OP
 _op_supported(::Type{<:AbstractFloat}, o::ucc_reduction_op_t) =  # includes Core.BFloat16 on Julia 1.11+
     o in (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_MAX, UCC_OP_MIN, UCC_OP_AVG)
 _op_supported(::Type{<:Complex}, o::ucc_reduction_op_t) = o in (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_AVG)
+_op_supported(::Type{Bool}, o::ucc_reduction_op_t) = o ∉ (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_AVG, UCC_OP_MAXLOC, UCC_OP_MINLOC)
 _op_supported(::Type{<:Union{Int128,UInt128}}, ::ucc_reduction_op_t) = false
 _op_supported(T, o, mem) = _op_supported(T, o)
 _op_supported(::Type{Float16}, o, mem) =  # no CPU reduction

@@ -66,6 +66,7 @@ end
     @test UCC.rank(team) == 0
     @test UCC.size(team) == 1
     test_collectives(team, Array)
+    @test_throws ArgumentError UCC.Allreduce!([true], +, team)
     @test_throws ArgumentError UCC.Allreduce!(Int128[1], +, team)
     @test_throws ArgumentError UCC.Allreduce!(Float16[1], +, team)
     UCC.destroy(team)
