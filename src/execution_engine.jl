@@ -12,29 +12,32 @@ with [`UCC.triggered_post!`](@ref).
 # External links
 - `ucc_ee_create`, `ucc_ee_destroy`
 """
-mutable struct ExecutionEngine
+mutable struct ExecutionEngine <: UCCObject
     handle::ucc_ee_h
     team::Team
     context::Any  # keeps the underlying resource (e.g. stream) alive
+    @atomic refs::Int
+    @atomic destroyed::Bool
 end
 
 function ExecutionEngine(team::Team, ee_type::ucc_ee_type_t, ee_context::Ptr,
                          ee_context_size::Integer=0; root=nothing)
+    @atomic(team.destroyed) && throw(ArgumentError("team has been destroyed"))
     params = Ref(ucc_ee_params_t(ee_type, ee_context, ee_context_size))
     ref = Ref{ucc_ee_h}(C_NULL)
     ucc_ee_create(team, params, ref)
-    ee = ExecutionEngine(ref[], team, root)
+    ee = ExecutionEngine(ref[], _retain(team), root, 0, false)
     return finalizer(_defer, ee)
 end
 
 Base.unsafe_convert(::Type{ucc_ee_h}, ee::ExecutionEngine) = ee.handle
 
-function destroy(ee::ExecutionEngine)
+function _free(ee::ExecutionEngine)
     if ee.handle != C_NULL
         ucc_ee_destroy(ee)
         ee.handle = C_NULL
+        _release(ee.team)
     end
-    return nothing
 end
 
 """
@@ -50,8 +53,13 @@ already enqueued on `ee` has completed. Complete it with `wait(req)` as usual.
 function triggered_post!(ee::ExecutionEngine, req::Request;
                          ev_type::ucc_event_type_t=UCC_EVENT_COMPUTE_COMPLETE)
     req.handle == C_NULL && throw(ArgumentError("request has been freed"))
+    @atomic(ee.destroyed) && throw(ArgumentError("execution engine has been destroyed"))
     ev = Ref(ucc_ev_t(ev_type, C_NULL, 0, req.handle))
     ucc_collective_triggered_post(ee, ev)
+    if req.ee !== ee
+        req.ee === nothing || _release(req.ee)
+        req.ee = _retain(ee)
+    end
     req.posted = true
     return req
 end

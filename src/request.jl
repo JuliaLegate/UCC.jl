@@ -26,6 +26,7 @@ mutable struct Request{R,B<:Tuple}
     result::R                 # returned by `wait`
     persistent::Bool
     posted::Bool
+    ee::Union{Nothing,UCCObject}  # engine of a triggered post
 end
 
 Base.unsafe_convert(::Type{ucc_coll_req_h}, req::Request) = req.handle
@@ -105,6 +106,9 @@ function free(req::Request)
         ucc_collective_finalize(req)
         req.handle = C_NULL
         req.buffers = nothing
+        req.ee === nothing || _release(req.ee)
+        req.ee = nothing
+        _release(req.team)
     end
     return nothing
 end
@@ -140,7 +144,7 @@ function _collective(team::Team, coll_type::ucc_coll_type_t;
                      persistent::Bool=false,
                      timeout::Union{Nothing,Real}=nothing,
                      tag::Union{Nothing,Integer}=nothing)
-    team.handle == C_NULL && throw(ArgumentError("team has been destroyed"))
+    @atomic(team.destroyed) && throw(ArgumentError("team has been destroyed"))
     0 <= root < team.size || throw(ArgumentError("root must be in [0, $(team.size))"))
     mask = UCC_COLL_ARGS_FIELD_FLAGS
     flags |= UCC_COLL_ARGS_FLAG_COUNT_64BIT | UCC_COLL_ARGS_FLAG_DISPLACEMENTS_64BIT
@@ -153,7 +157,8 @@ function _collective(team::Team, coll_type::ucc_coll_type_t;
                                something(timeout, 0.0), _no_active_set, C_NULL, C_NULL))
     ref = Ref{ucc_coll_req_h}(C_NULL)
     GC.@preserve buffers ucc_collective_init(args, ref, team)
-    req = finalizer(_defer_request, Request(ref[], team, buffers, result, persistent, false))
+    req = finalizer(_defer_request,
+                    Request(ref[], _retain(team), buffers, result, persistent, false, nothing))
     if post
         try
             post!(req)

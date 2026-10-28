@@ -130,6 +130,31 @@ end
     destroy_all(teams)
 end
 
+@testset "request and engine lifetimes" begin
+    ctx = UCC.Context(UCC.LocalOOB(1)[1])
+
+    # a team outlives its requests
+    team = UCC.Team(ctx)
+    req = UCC.Iallreduce!(ones(4), zeros(4), +, team)
+    UCC.destroy(team)
+    @test team.handle != C_NULL
+    wait(req)
+    @test team.handle == C_NULL
+
+    # an engine outlives its triggered requests, and a team its engines
+    team = UCC.Team(ctx)
+    ee = UCC.ExecutionEngine(team, UCC_EE_CPU_THREAD, C_NULL)
+    req = UCC.Iallreduce!(ones(4), zeros(4), +, team; post=false)
+    UCC.triggered_post!(ee, req)
+    UCC.destroy(ee)
+    UCC.destroy(team)
+    @test ee.handle != C_NULL && team.handle != C_NULL
+    wait(req)
+    @test ee.handle == C_NULL && team.handle == C_NULL
+
+    UCC.destroy(ctx)
+end
+
 struct Point
     x::Int32
     y::Int32
