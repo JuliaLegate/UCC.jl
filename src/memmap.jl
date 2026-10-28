@@ -29,7 +29,7 @@ function _map_buffers(ctx::Context, buffers::Tuple; mode::ucc_mem_map_mode_t)
     memh_size = Ref{Csize_t}(0)
     memh = Ref{ucc_mem_map_mem_h}(C_NULL)
     GC.@preserve buffers segments ucc_mem_map(_alive(ctx), mode, params, memh_size, memh)
-    return MemoryHandle(memh[], Int(memh_size[]), _retain(ctx), buffers)
+    return finalizer(_defer, MemoryHandle(memh[], Int(memh_size[]), _retain(ctx), buffers))
 end
 
 """
@@ -52,7 +52,7 @@ function MemoryHandle(ctx::Context, bytes::Vector{UInt8};
         Libc.free(buf)
         rethrow()
     end
-    return MemoryHandle(memh[], Int(memh_size[]), _retain(ctx), bytes)
+    return finalizer(_defer, MemoryHandle(memh[], Int(memh_size[]), _retain(ctx), bytes))
 end
 
 Base.Vector{UInt8}(memh::MemoryHandle) =
