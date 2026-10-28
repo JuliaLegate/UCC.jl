@@ -28,4 +28,4 @@ which does not support CUDA.jl's default memory pool. Collectives it handles
 then fail with `UCC_ERR_INVALID_PARAM`. Either disable the pool with
 `JULIA_CUDA_MEMORY_POOL=none`, or disable the transport with
 `UCC_CL_BASIC_TLS=^cuda`.
-:::
+
