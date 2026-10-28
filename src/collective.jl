@@ -14,20 +14,28 @@ _datatype(::Type{T}) where {T} = get(() -> _builtin_datatype(T), _generic_dataty
 
 function _info(buffer, count::Integer=length(buffer))
     _check_contiguous(buffer)
-    ucc_coll_buffer_info_u(ucc_coll_buffer_info_t(
-        _ptr(buffer), count, _datatype(eltype(buffer)), memory_type(buffer)))
+    return ucc_coll_buffer_info_u(
+        ucc_coll_buffer_info_t(
+            _ptr(buffer), count, _datatype(eltype(buffer)), memory_type(buffer)),
+    )
 end
 
 # placeholder for a buffer that is not used on this rank (e.g. the receive
 # buffer of a non-root rank)
-_info(::Nothing, like) = ucc_coll_buffer_info_u(ucc_coll_buffer_info_t(
-    C_NULL, 0, _datatype(eltype(like)), memory_type(like)))
+function _info(::Nothing, like)
+    return ucc_coll_buffer_info_u(
+        ucc_coll_buffer_info_t(
+            C_NULL, 0, _datatype(eltype(like)), memory_type(like)),
+    )
+end
 
 function _info_v(buffer, counts::Vector{UInt64}, displs::Vector{UInt64})
     _check_contiguous(buffer)
-    ucc_coll_buffer_info_u(ucc_coll_buffer_info_v_t(
-        _ptr(buffer), pointer(counts), pointer(displs),
-        _datatype(eltype(buffer)), memory_type(buffer)))
+    return ucc_coll_buffer_info_u(
+        ucc_coll_buffer_info_v_t(
+            _ptr(buffer), pointer(counts), pointer(displs),
+            _datatype(eltype(buffer)), memory_type(buffer)),
+    )
 end
 
 function _counts(counts, team::Team)
@@ -66,20 +74,26 @@ end
 # UCC 1.8 can complete a reduction with an unsupported (type, op) pair
 # without reporting an error, so reject those up front.
 _op_supported(::Type, o::ucc_reduction_op_t) = o != UCC_OP_MAXLOC && o != UCC_OP_MINLOC
-_op_supported(::Type{<:AbstractFloat}, o::ucc_reduction_op_t) =  # includes Core.BFloat16 on Julia 1.11+
-    o in (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_MAX, UCC_OP_MIN, UCC_OP_AVG)
+function _op_supported(::Type{<:AbstractFloat}, o::ucc_reduction_op_t)  # includes Core.BFloat16 on Julia 1.11+
+    return o in (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_MAX, UCC_OP_MIN, UCC_OP_AVG)
+end
 _op_supported(::Type{<:Complex}, o::ucc_reduction_op_t) = o in (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_AVG)
-_op_supported(::Type{Bool}, o::ucc_reduction_op_t) = o ∉ (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_AVG, UCC_OP_MAXLOC, UCC_OP_MINLOC)
+function _op_supported(::Type{Bool}, o::ucc_reduction_op_t)
+    return o ∉ (UCC_OP_SUM, UCC_OP_PROD, UCC_OP_AVG, UCC_OP_MAXLOC, UCC_OP_MINLOC)
+end
 _op_supported(::Type{<:Union{Int128,UInt128}}, ::ucc_reduction_op_t) = false
 _op_supported(T, o, mem) = _op_supported(T, o)
-_op_supported(::Type{Float16}, o, mem) =  # no CPU reduction
-    mem in (UCC_MEMORY_TYPE_CUDA, UCC_MEMORY_TYPE_CUDA_MANAGED) && _op_supported(AbstractFloat, o)
+function _op_supported(::Type{Float16}, o, mem)  # no CPU reduction
+    return mem in (UCC_MEMORY_TYPE_CUDA, UCC_MEMORY_TYPE_CUDA_MANAGED) &&
+           _op_supported(AbstractFloat, o)
+end
 
 function _op(buffer, op)
     T = eltype(buffer)
     o = ucc_reduction_op_t(op)
     if haskey(_generic_datatype_objs, T)  # reduction defined by the datatype
-        _generic_datatype_objs[T].op === nothing && throw(ArgumentError("$T was registered without an op"))
+        _generic_datatype_objs[T].op === nothing &&
+            throw(ArgumentError("$T was registered without an op"))
         return o
     end
     _op_supported(T, o, memory_type(buffer)) ||
@@ -91,13 +105,15 @@ function _check_eltypes(buffers...)
     T = eltype(first(buffers))
     for b in buffers
         b === nothing && continue
-        eltype(b) == T || throw(ArgumentError(
-            "all buffers must have the same element type (got $T and $(eltype(b)))"))
+        eltype(b) == T || throw(
+            ArgumentError(
+                "all buffers must have the same element type (got $T and $(eltype(b)))"),
+        )
     end
 end
 
 function _check_length(buffer, n, name)
-    length(buffer) == n || throw(DimensionMismatch(
+    return length(buffer) == n || throw(DimensionMismatch(
         "$name has length $(length(buffer)), expected $n"))
 end
 
@@ -121,9 +137,9 @@ Reduce array `sendbuf` using `op` (one of `+`, `*`, `min`, `max`, `&`, `|`,
 function Iallreduce!(sendbuf, recvbuf, op, team::Team; kwargs...)
     _check_length(sendbuf, length(recvbuf), "sendbuf")
     _check_eltypes(sendbuf, recvbuf)
-    _collective(team, UCC_COLL_TYPE_ALLREDUCE;
-                src=_info(sendbuf), dst=_info(recvbuf), op=_op(sendbuf, op),
-                buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_ALLREDUCE;
+        src=_info(sendbuf), dst=_info(recvbuf), op=_op(sendbuf, op),
+        buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
 end
 
 """
@@ -134,10 +150,10 @@ Reduce the array `sendrecvbuf` using `op`, writing the result in place on all
 ranks.
 """
 function Iallreduce!(sendrecvbuf, op, team::Team; kwargs...)
-    _collective(team, UCC_COLL_TYPE_ALLREDUCE;
-                src=_info(sendrecvbuf), dst=_info(sendrecvbuf), op=_op(sendrecvbuf, op),
-                flags=UCC_COLL_ARGS_FLAG_IN_PLACE,
-                buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_ALLREDUCE;
+        src=_info(sendrecvbuf), dst=_info(sendrecvbuf), op=_op(sendrecvbuf, op),
+        flags=UCC_COLL_ARGS_FLAG_IN_PLACE,
+        buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
 end
 
 #
@@ -154,8 +170,8 @@ Copy `sendrecvbuf` on rank `root` to `sendrecvbuf` on all ranks.
 - `UCC_COLL_TYPE_BCAST`
 """
 function Ibroadcast!(sendrecvbuf, team::Team; root::Integer=0, kwargs...)
-    _collective(team, UCC_COLL_TYPE_BCAST; src=_info(sendrecvbuf), root,
-                buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_BCAST; src=_info(sendrecvbuf), root,
+        buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
 end
 
 """
@@ -171,16 +187,18 @@ The two-buffer form requires immediate, non-persistent posting. For
 each post, after the previous operation has completed.
 """
 function Ibroadcast!(sendbuf, recvbuf, team::Team; root::Integer=0,
-                     post::Bool=true, persistent::Bool=false, kwargs...)
-    (persistent || !post) && throw(ArgumentError(
-        "two-buffer broadcast does not support persistent=true or post=false; " *
-        "use Ibroadcast!(recvbuf, team; ...) and copyto!(recvbuf, sendbuf) on " *
-        "the root before each post, after the previous operation has completed"))
+    post::Bool=true, persistent::Bool=false, kwargs...)
+    (persistent || !post) && throw(
+        ArgumentError(
+            "two-buffer broadcast does not support persistent=true or post=false; " *
+            "use Ibroadcast!(recvbuf, team; ...) and copyto!(recvbuf, sendbuf) on " *
+            "the root before each post, after the previous operation has completed"),
+    )
     if _isroot(team, root) && sendbuf !== recvbuf
         _check_length(sendbuf, length(recvbuf), "sendbuf")
         copyto!(recvbuf, sendbuf)
     end
-    Ibroadcast!(recvbuf, team; root, kwargs...)
+    return Ibroadcast!(recvbuf, team; root, kwargs...)
 end
 
 #
@@ -205,9 +223,9 @@ function Ireduce!(sendbuf, recvbuf, op, team::Team; root::Integer=0, kwargs...)
     else
         dst = recvbuf === nothing ? _info(nothing, sendbuf) : _info(recvbuf)
     end
-    _collective(team, UCC_COLL_TYPE_REDUCE;
-                src=_info(sendbuf), dst, op=_op(sendbuf, op), root,
-                buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_REDUCE;
+        src=_info(sendbuf), dst, op=_op(sendbuf, op), root,
+        buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
 end
 
 """
@@ -219,10 +237,10 @@ Reduce the array `sendrecvbuf` using `op`, writing the result in place on rank
 """
 function Ireduce!(sendrecvbuf, op, team::Team; root::Integer=0, kwargs...)
     flags = _isroot(team, root) ? UCC_COLL_ARGS_FLAG_IN_PLACE : UInt64(0)
-    _collective(team, UCC_COLL_TYPE_REDUCE;
-                src=_info(sendrecvbuf), dst=_info(sendrecvbuf),
-                op=_op(sendrecvbuf, op), root, flags,
-                buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_REDUCE;
+        src=_info(sendrecvbuf), dst=_info(sendrecvbuf),
+        op=_op(sendrecvbuf, op), root, flags,
+        buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
 end
 
 #
@@ -241,8 +259,8 @@ Concatenate `sendbuf` from each rank into `recvbuf` on all ranks.
 function Iallgather!(sendbuf, recvbuf, team::Team; kwargs...)
     _check_length(recvbuf, length(sendbuf) * team.size, "recvbuf")
     _check_eltypes(sendbuf, recvbuf)
-    _collective(team, UCC_COLL_TYPE_ALLGATHER; src=_info(sendbuf), dst=_info(recvbuf),
-                buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_ALLGATHER; src=_info(sendbuf), dst=_info(recvbuf),
+        buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
 end
 
 """
@@ -255,10 +273,10 @@ In-place allgather: each rank's contribution is the `rank`-th block of
 function Iallgather!(sendrecvbuf, team::Team; kwargs...)
     length(sendrecvbuf) % team.size == 0 || throw(DimensionMismatch(
         "length of sendrecvbuf must be a multiple of the team size"))
-    _collective(team, UCC_COLL_TYPE_ALLGATHER;
-                src=_info(sendrecvbuf), dst=_info(sendrecvbuf),
-                flags=UCC_COLL_ARGS_FLAG_IN_PLACE,
-                buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_ALLGATHER;
+        src=_info(sendrecvbuf), dst=_info(sendrecvbuf),
+        flags=UCC_COLL_ARGS_FLAG_IN_PLACE,
+        buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
 end
 
 """
@@ -275,12 +293,12 @@ contributes `counts[i+1]` elements placed at element offset `displs[i+1]`
 function Iallgatherv!(sendbuf, recvbuf, counts, team::Team; displs=nothing, kwargs...)
     c = _counts(counts, team)
     d = _displs(displs, c)
-    _check_length(sendbuf, c[team.rank+1], "sendbuf")
+    _check_length(sendbuf, c[team.rank + 1], "sendbuf")
     _check_eltypes(sendbuf, recvbuf)
     _check_extent(recvbuf, c, d, "recvbuf")
-    _collective(team, UCC_COLL_TYPE_ALLGATHERV;
-                src=_info(sendbuf), dst=_info_v(recvbuf, c, d),
-                buffers=(sendbuf, recvbuf, c, d), result=recvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_ALLGATHERV;
+        src=_info(sendbuf), dst=_info_v(recvbuf, c, d),
+        buffers=(sendbuf, recvbuf, c, d), result=recvbuf, kwargs...)
 end
 
 #
@@ -302,8 +320,8 @@ function Ialltoall!(sendbuf, recvbuf, team::Team; kwargs...)
     length(sendbuf) % team.size == 0 || throw(DimensionMismatch(
         "length of sendbuf must be a multiple of the team size"))
     _check_eltypes(sendbuf, recvbuf)
-    _collective(team, UCC_COLL_TYPE_ALLTOALL; src=_info(sendbuf), dst=_info(recvbuf),
-                buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_ALLTOALL; src=_info(sendbuf), dst=_info(recvbuf),
+        buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
 end
 
 """
@@ -315,10 +333,10 @@ In-place all-to-all.
 function Ialltoall!(sendrecvbuf, team::Team; kwargs...)
     length(sendrecvbuf) % team.size == 0 || throw(DimensionMismatch(
         "length of sendrecvbuf must be a multiple of the team size"))
-    _collective(team, UCC_COLL_TYPE_ALLTOALL;
-                src=_info(sendrecvbuf), dst=_info(sendrecvbuf),
-                flags=UCC_COLL_ARGS_FLAG_IN_PLACE,
-                buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_ALLTOALL;
+        src=_info(sendrecvbuf), dst=_info(sendrecvbuf),
+        flags=UCC_COLL_ARGS_FLAG_IN_PLACE,
+        buffers=(sendrecvbuf,), result=sendrecvbuf, kwargs...)
 end
 
 """
@@ -335,7 +353,7 @@ Send `sendcounts[i+1]` elements at offset `sdispls[i+1]` of `sendbuf` to rank
 - `UCC_COLL_TYPE_ALLTOALLV`
 """
 function Ialltoallv!(sendbuf, sendcounts, recvbuf, recvcounts, team::Team;
-                     sdispls=nothing, rdispls=nothing, kwargs...)
+    sdispls=nothing, rdispls=nothing, kwargs...)
     sc = _counts(sendcounts, team)
     rc = _counts(recvcounts, team)
     sd = _displs(sdispls, sc)
@@ -343,9 +361,9 @@ function Ialltoallv!(sendbuf, sendcounts, recvbuf, recvcounts, team::Team;
     _check_eltypes(sendbuf, recvbuf)
     _check_extent(sendbuf, sc, sd, "sendbuf")
     _check_extent(recvbuf, rc, rd, "recvbuf")
-    _collective(team, UCC_COLL_TYPE_ALLTOALLV;
-                src=_info_v(sendbuf, sc, sd), dst=_info_v(recvbuf, rc, rd),
-                buffers=(sendbuf, recvbuf, sc, sd, rc, rd), result=recvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_ALLTOALLV;
+        src=_info_v(sendbuf, sc, sd), dst=_info_v(recvbuf, rc, rd),
+        buffers=(sendbuf, recvbuf, sc, sd, rc, rd), result=recvbuf, kwargs...)
 end
 
 #
@@ -372,8 +390,9 @@ Rank `root` waits until all ranks have entered the fan-in.
 # External links
 - `UCC_COLL_TYPE_FANIN`
 """
-Ifanin(team::Team; root::Integer=0, kwargs...) =
-    _collective(team, UCC_COLL_TYPE_FANIN; root, kwargs...)
+function Ifanin(team::Team; root::Integer=0, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_FANIN; root, kwargs...)
+end
 
 """
     UCC.Fanout(team::Team; root=0)
@@ -384,8 +403,9 @@ All ranks wait until rank `root` has entered the fan-out.
 # External links
 - `UCC_COLL_TYPE_FANOUT`
 """
-Ifanout(team::Team; root::Integer=0, kwargs...) =
-    _collective(team, UCC_COLL_TYPE_FANOUT; root, kwargs...)
+function Ifanout(team::Team; root::Integer=0, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_FANOUT; root, kwargs...)
+end
 
 #
 # Gather(v)
@@ -409,8 +429,8 @@ function Igather!(sendbuf, recvbuf, team::Team; root::Integer=0, kwargs...)
     else
         dst = _info(nothing, sendbuf)
     end
-    _collective(team, UCC_COLL_TYPE_GATHER; src=_info(sendbuf), dst, root,
-                buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_GATHER; src=_info(sendbuf), dst, root,
+        buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
 end
 
 """
@@ -425,10 +445,10 @@ rank `root`, at element offsets `displs` (packed by default). `recvbuf` may be
 - `UCC_COLL_TYPE_GATHERV`
 """
 function Igatherv!(sendbuf, recvbuf, counts, team::Team; root::Integer=0,
-                   displs=nothing, kwargs...)
+    displs=nothing, kwargs...)
     c = _counts(counts, team)
     d = _displs(displs, c)
-    _check_length(sendbuf, c[team.rank+1], "sendbuf")
+    _check_length(sendbuf, c[team.rank + 1], "sendbuf")
     if _isroot(team, root)
         _check_eltypes(sendbuf, recvbuf)
         _check_extent(recvbuf, c, d, "recvbuf")
@@ -436,14 +456,17 @@ function Igatherv!(sendbuf, recvbuf, counts, team::Team; root::Integer=0,
     else
         dst = _info_v(nothing, sendbuf, c, d)
     end
-    _collective(team, UCC_COLL_TYPE_GATHERV; src=_info(sendbuf), dst, root,
-                buffers=(sendbuf, recvbuf, c, d), result=recvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_GATHERV; src=_info(sendbuf), dst, root,
+        buffers=(sendbuf, recvbuf, c, d), result=recvbuf, kwargs...)
 end
 
-_info_v(::Nothing, like, counts::Vector{UInt64}, displs::Vector{UInt64}) =
-    ucc_coll_buffer_info_u(ucc_coll_buffer_info_v_t(
-        C_NULL, pointer(counts), pointer(displs),
-        _datatype(eltype(like)), memory_type(like)))
+function _info_v(::Nothing, like, counts::Vector{UInt64}, displs::Vector{UInt64})
+    return ucc_coll_buffer_info_u(
+        ucc_coll_buffer_info_v_t(
+            C_NULL, pointer(counts), pointer(displs),
+            _datatype(eltype(like)), memory_type(like)),
+    )
+end
 
 #
 # Reduce-scatter(v)
@@ -463,9 +486,9 @@ block of the result.
 function IreduceScatter!(sendbuf, recvbuf, op, team::Team; kwargs...)
     _check_length(sendbuf, length(recvbuf) * team.size, "sendbuf")
     _check_eltypes(sendbuf, recvbuf)
-    _collective(team, UCC_COLL_TYPE_REDUCE_SCATTER;
-                src=_info(sendbuf), dst=_info(recvbuf), op=_op(sendbuf, op),
-                buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_REDUCE_SCATTER;
+        src=_info(sendbuf), dst=_info(recvbuf), op=_op(sendbuf, op),
+        buffers=(sendbuf, recvbuf), result=recvbuf, kwargs...)
 end
 
 """
@@ -483,12 +506,12 @@ function IreduceScatterv!(sendbuf, recvbuf, counts, op, team::Team; kwargs...)
     c = _counts(counts, team)
     d = _displs(nothing, c)
     _check_length(sendbuf, sum(c), "sendbuf")
-    _check_length(recvbuf, c[team.rank+1], "recvbuf")
+    _check_length(recvbuf, c[team.rank + 1], "recvbuf")
     _check_eltypes(sendbuf, recvbuf)
-    _collective(team, UCC_COLL_TYPE_REDUCE_SCATTERV;
-                src=_info(sendbuf), dst=_info_v(recvbuf, c, d),
-                op=_op(sendbuf, op),
-                buffers=(sendbuf, recvbuf, c, d), result=recvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_REDUCE_SCATTERV;
+        src=_info(sendbuf), dst=_info_v(recvbuf, c, d),
+        op=_op(sendbuf, op),
+        buffers=(sendbuf, recvbuf, c, d), result=recvbuf, kwargs...)
 end
 
 #
@@ -507,7 +530,7 @@ posted as a scatterv with equal counts.
 """
 function Iscatter!(sendbuf, recvbuf, team::Team; root::Integer=0, kwargs...)
     _isroot(team, root) && _check_length(sendbuf, length(recvbuf) * team.size, "sendbuf")
-    Iscatterv!(sendbuf, fill(length(recvbuf), team.size), recvbuf, team; root, kwargs...)
+    return Iscatterv!(sendbuf, fill(length(recvbuf), team.size), recvbuf, team; root, kwargs...)
 end
 
 """
@@ -522,10 +545,10 @@ on non-root ranks.
 - `UCC_COLL_TYPE_SCATTERV`
 """
 function Iscatterv!(sendbuf, counts, recvbuf, team::Team; root::Integer=0,
-                    displs=nothing, kwargs...)
+    displs=nothing, kwargs...)
     c = _counts(counts, team)
     d = _displs(displs, c)
-    _check_length(recvbuf, c[team.rank+1], "recvbuf")
+    _check_length(recvbuf, c[team.rank + 1], "recvbuf")
     if _isroot(team, root)
         _check_eltypes(sendbuf, recvbuf)
         _check_extent(sendbuf, c, d, "sendbuf")
@@ -533,8 +556,8 @@ function Iscatterv!(sendbuf, counts, recvbuf, team::Team; root::Integer=0,
     else
         src = _info_v(nothing, recvbuf, c, d)
     end
-    _collective(team, UCC_COLL_TYPE_SCATTERV; src, dst=_info(recvbuf), root,
-                buffers=(sendbuf, recvbuf, c, d), result=recvbuf, kwargs...)
+    return _collective(team, UCC_COLL_TYPE_SCATTERV; src, dst=_info(recvbuf), root,
+        buffers=(sendbuf, recvbuf, c, d), result=recvbuf, kwargs...)
 end
 
 #
@@ -542,21 +565,21 @@ end
 #
 
 for (blocking, nonblocking) in [(:Allreduce!, :Iallreduce!),
-                                (:Broadcast!, :Ibroadcast!),
-                                (:Reduce!, :Ireduce!),
-                                (:Allgather!, :Iallgather!),
-                                (:Allgatherv!, :Iallgatherv!),
-                                (:Alltoall!, :Ialltoall!),
-                                (:Alltoallv!, :Ialltoallv!),
-                                (:Barrier, :Ibarrier),
-                                (:Fanin, :Ifanin),
-                                (:Fanout, :Ifanout),
-                                (:Gather!, :Igather!),
-                                (:Gatherv!, :Igatherv!),
-                                (:ReduceScatter!, :IreduceScatter!),
-                                (:ReduceScatterv!, :IreduceScatterv!),
-                                (:Scatter!, :Iscatter!),
-                                (:Scatterv!, :Iscatterv!)]
+    (:Broadcast!, :Ibroadcast!),
+    (:Reduce!, :Ireduce!),
+    (:Allgather!, :Iallgather!),
+    (:Allgatherv!, :Iallgatherv!),
+    (:Alltoall!, :Ialltoall!),
+    (:Alltoallv!, :Ialltoallv!),
+    (:Barrier, :Ibarrier),
+    (:Fanin, :Ifanin),
+    (:Fanout, :Ifanout),
+    (:Gather!, :Igather!),
+    (:Gatherv!, :Igatherv!),
+    (:ReduceScatter!, :IreduceScatter!),
+    (:ReduceScatterv!, :IreduceScatterv!),
+    (:Scatter!, :Iscatter!),
+    (:Scatterv!, :Iscatterv!)]
     @eval begin
         $blocking(args...; kwargs...) = _blocking($nonblocking(args...; kwargs...))
         @doc (@doc $nonblocking) $blocking

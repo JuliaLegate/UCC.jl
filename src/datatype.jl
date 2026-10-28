@@ -74,8 +74,10 @@ function GenericDatatype(::Type{T}; op=nothing) where {T}
             @cfunction(_generic_reduce_cb, ucc_status_t, (Ptr{ucc_reduce_cb_params_t},)),
             pointer_from_objref(dt))
     end
-    ops = Ref(ucc_generic_dt_ops_t(UCC_GENERIC_DT_OPS_FIELD_FLAGS, flags, sizeof(T),
-                                   C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, reduce))
+    ops = Ref(
+        ucc_generic_dt_ops_t(UCC_GENERIC_DT_OPS_FIELD_FLAGS, flags, sizeof(T),
+            C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, C_NULL, reduce),
+    )
     ref = Ref{ucc_datatype_t}()
     ucc_dt_create_generic(ops, pointer_from_objref(dt), ref)
     dt.handle = ref[]

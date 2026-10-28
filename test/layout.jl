@@ -4,7 +4,7 @@
 
 using Test
 using UCC.LibUCC
-import UCC_jll
+using UCC_jll: UCC_jll
 
 # C struct name => (Julia type, C field names in Julia field order)
 const LAYOUTS = [
@@ -14,7 +14,7 @@ const LAYOUTS = [
         ["mask", "src1", "src2", "dst", "n_vectors", "count", "stride", "dt", "cb_ctx"]),
     "ucc_generic_dt_ops_t" => (ucc_generic_dt_ops_t,
         ["mask", "flags", "contig_size", "start_pack", "start_unpack", "packed_size",
-         "pack", "unpack", "finish", "reduce"]),
+            "pack", "unpack", "finish", "reduce"]),
     "ucc_lib_params_t" => (ucc_lib_params_t,
         ["mask", "thread_mode", "coll_types", "reduction_types", "sync_type"]),
     "ucc_lib_attr_t" => (ucc_lib_attr_t,
@@ -32,17 +32,17 @@ const LAYOUTS = [
     "ucc_ep_map_t" => (ucc_ep_map_t, ["type", "ep_num", "strided"]),
     "ucc_team_params_t" => (ucc_team_params_t,
         ["mask", "flags", "ordering", "outstanding_colls", "ep", "ep_list", "ep_range",
-         "team_size", "sync_type", "oob", "p2p_conn", "mem_params", "ep_map", "id"]),
+            "team_size", "sync_type", "oob", "p2p_conn", "mem_params", "ep_map", "id"]),
     "ucc_team_attr_t" => (ucc_team_attr_t,
         ["mask", "ordering", "outstanding_colls", "ep", "ep_range", "sync_type",
-         "mem_params", "size", "eps"]),
+            "mem_params", "size", "eps"]),
     "ucc_coll_buffer_info_v_t" => (ucc_coll_buffer_info_v_t,
         ["buffer", "counts", "displacements", "datatype", "mem_type"]),
     "ucc_coll_buffer_info_t" => (ucc_coll_buffer_info_t,
         ["buffer", "count", "datatype", "mem_type"]),
     "ucc_coll_args_t" => (ucc_coll_args_t,
         ["mask", "coll_type", "src", "dst", "op", "flags", "root", "error_type", "tag",
-         "global_work_buffer", "cb", "timeout", "active_set", "src_memh", "dst_memh"]),
+            "global_work_buffer", "cb", "timeout", "active_set", "src_memh", "dst_memh"]),
     "ucc_ev_t" => (ucc_ev_t, ["ev_type", "ev_context", "ev_context_size", "req"]),
     "ucc_ee_params_t" => (ucc_ee_params_t, ["ee_type", "ee_context", "ee_context_size"]),
 ]

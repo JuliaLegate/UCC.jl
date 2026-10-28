@@ -21,7 +21,7 @@ mutable struct ExecutionEngine <: UCCObject
 end
 
 function ExecutionEngine(team::Team, ee_type::ucc_ee_type_t, ee_context::Ptr,
-                         ee_context_size::Integer=0; root=nothing)
+    ee_context_size::Integer=0; root=nothing)
     _alive(team)
     params = Ref(ucc_ee_params_t(ee_type, ee_context, ee_context_size))
     ref = Ref{ucc_ee_h}(C_NULL)
@@ -51,7 +51,7 @@ already enqueued on `ee` has completed. Complete it with `wait(req)` as usual.
 - `ucc_collective_triggered_post`
 """
 function triggered_post!(ee::ExecutionEngine, req::Request;
-                         ev_type::ucc_event_type_t=UCC_EVENT_COMPUTE_COMPLETE)
+    ev_type::ucc_event_type_t=UCC_EVENT_COMPUTE_COMPLETE)
     req.handle == C_NULL && throw(ArgumentError("request has been freed"))
     _alive(ee)
     ev = Ref(ucc_ev_t(ev_type, C_NULL, 0, req.handle))

@@ -36,11 +36,11 @@ function oob_rank end
 function oob_size end
 
 function allgather(oob::AbstractOOB, data::Vector{UInt8})
-    throw(MethodError(allgather, (oob, data)))
+    return throw(MethodError(allgather, (oob, data)))
 end
 
 function allgather_start(oob::AbstractOOB, src::Ptr{UInt8}, dst::Ptr{UInt8}, nbytes::Int)
-    data = unsafe_wrap(Array, src, nbytes) |> copy
+    data = copy(unsafe_wrap(Array, src, nbytes))
     result = allgather(oob, data)
     length(result) == nbytes * oob_size(oob) || error(
         "OOB allgather returned $(length(result)) bytes, expected $(nbytes * oob_size(oob))")
@@ -64,7 +64,7 @@ const _oob_next_id = Ref{UInt}(1)
 _oob_request(request::Ptr{Cvoid}) = @lock _oob_requests_lock _oob_requests[UInt(request)]
 
 function _oob_allgather(src::Ptr{Cvoid}, dst::Ptr{Cvoid}, nbytes::Csize_t,
-                        info::Ptr{Cvoid}, request::Ptr{Ptr{Cvoid}})::ucc_status_t
+    info::Ptr{Cvoid}, request::Ptr{Ptr{Cvoid}})::ucc_status_t
     try
         oob = unsafe_pointer_to_objref(info)::AbstractOOB
         handle = allgather_start(oob, Ptr{UInt8}(src), Ptr{UInt8}(dst), Int(nbytes))
@@ -110,9 +110,9 @@ end
 # as long as UCC may call back into it.
 function _oob_coll(oob::AbstractOOB)
     ismutable(oob) || throw(ArgumentError("OOB objects must be mutable (got $(typeof(oob)))"))
-    LibUCC.ucc_oob_coll_t(
+    return LibUCC.ucc_oob_coll_t(
         @cfunction(_oob_allgather, ucc_status_t,
-                   (Ptr{Cvoid}, Ptr{Cvoid}, Csize_t, Ptr{Cvoid}, Ptr{Ptr{Cvoid}})),
+            (Ptr{Cvoid}, Ptr{Cvoid}, Csize_t, Ptr{Cvoid}, Ptr{Ptr{Cvoid}})),
         @cfunction(_oob_req_test, ucc_status_t, (Ptr{Cvoid},)),
         @cfunction(_oob_req_free, ucc_status_t, (Ptr{Cvoid},)),
         pointer_from_objref(oob),
@@ -160,10 +160,11 @@ mutable struct LocalOOB <: AbstractOOB
     const rank::Int
 end
 
-LocalOOB(n::Integer) =
+function LocalOOB(n::Integer)
     let g = LocalOOBGroup(n, ReentrantLock(), Dict{Int,LocalOOBRound}(), zeros(Int, n))
-        [LocalOOB(g, r) for r in 0:n-1]
+        [LocalOOB(g, r) for r in 0:(n - 1)]
     end
+end
 
 oob_rank(oob::LocalOOB) = oob.rank
 oob_size(oob::LocalOOB) = oob.group.size
@@ -171,11 +172,11 @@ oob_size(oob::LocalOOB) = oob.group.size
 function allgather_start(oob::LocalOOB, src::Ptr{UInt8}, dst::Ptr{UInt8}, nbytes::Int)
     g = oob.group
     @lock g.lock begin
-        seq = (g.seq[oob.rank+1] += 1)
+        seq = (g.seq[oob.rank + 1] += 1)
         round = get!(g.rounds, seq) do
             LocalOOBRound([UInt8[] for _ in 1:g.size], 0, 0)
         end
-        round.data[oob.rank+1] = copy(unsafe_wrap(Array, src, nbytes))
+        round.data[oob.rank + 1] = copy(unsafe_wrap(Array, src, nbytes))
         round.arrived += 1
         return (seq, dst, nbytes)
     end

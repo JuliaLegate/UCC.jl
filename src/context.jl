@@ -43,14 +43,18 @@ function Base.setindex!(config::ContextConfig, value, name::AbstractString)
 end
 
 function Base.setindex!(config::ContextConfig, value, component::AbstractString,
-                        name::AbstractString)
+    name::AbstractString)
     ucc_context_config_modify(config, component, name, string(value))
     return config
 end
 
-Base.show(io::IO, ::MIME"text/plain", config::ContextConfig) =
-    print(io, _config_string((s, t, f) -> ucc_context_config_print(config, s, t, f),
-                             "UCC context configuration"))
+function Base.show(io::IO, ::MIME"text/plain", config::ContextConfig)
+    return print(
+        io,
+        _config_string((s, t, f) -> ucc_context_config_print(config, s, t, f),
+            "UCC context configuration"),
+    )
+end
 
 """
     UCC.Context([oob::AbstractOOB]; lib, type, sync_type, id,
@@ -80,24 +84,29 @@ mutable struct Context <: UCCObject
 end
 
 function Context(oob::Union{Nothing,AbstractOOB}=nothing;
-                 lib::Union{Nothing,Library}=nothing,
-                 type::Union{Nothing,ucc_context_type_t}=nothing,
-                 sync_type::Union{Nothing,ucc_coll_sync_type_t}=nothing,
-                 id::Union{Nothing,Integer}=nothing,
-                 config::Union{Nothing,ContextConfig}=nothing)
+    lib::Union{Nothing,Library}=nothing,
+    type::Union{Nothing,ucc_context_type_t}=nothing,
+    sync_type::Union{Nothing,ucc_coll_sync_type_t}=nothing,
+    id::Union{Nothing,Integer}=nothing,
+    config::Union{Nothing,ContextConfig}=nothing)
     mask = UInt64(0)
     type === nothing || (mask |= UCC_CONTEXT_PARAM_FIELD_TYPE)
     sync_type === nothing || (mask |= UCC_CONTEXT_PARAM_FIELD_SYNC_TYPE)
     oob === nothing || (mask |= UCC_CONTEXT_PARAM_FIELD_OOB)
     id === nothing || (mask |= UCC_CONTEXT_PARAM_FIELD_ID)
-    oob_coll = oob === nothing ?
-        LibUCC.ucc_oob_coll_t(C_NULL, C_NULL, C_NULL, C_NULL, 0, 0) : _oob_coll(oob)
-    params = Ref(ucc_context_params_t(mask,
-                                      something(type, UCC_CONTEXT_EXCLUSIVE),
-                                      something(sync_type, UCC_NO_SYNC_COLLECTIVES),
-                                      oob_coll,
-                                      something(id, 0),
-                                      ucc_mem_map_params_t(C_NULL, 0)))
+    oob_coll = if oob === nothing
+        LibUCC.ucc_oob_coll_t(C_NULL, C_NULL, C_NULL, C_NULL, 0, 0)
+    else
+        _oob_coll(oob)
+    end
+    params = Ref(
+        ucc_context_params_t(mask,
+            something(type, UCC_CONTEXT_EXCLUSIVE),
+            something(sync_type, UCC_NO_SYNC_COLLECTIVES),
+            oob_coll,
+            something(id, 0),
+            ucc_mem_map_params_t(C_NULL, 0)),
+    )
     owns_lib = lib === nothing
     owns_lib && (lib = Library())
     # UCC requires a configuration; read the default (environment) one if needed
@@ -144,11 +153,13 @@ end
 Query the type, sync type, address and global work buffer size of `ctx`.
 """
 function attributes(ctx::Context;
-                    mask=UCC_CONTEXT_ATTR_FIELD_TYPE | UCC_CONTEXT_ATTR_FIELD_SYNC_TYPE |
-                         UCC_CONTEXT_ATTR_FIELD_CTX_ADDR | UCC_CONTEXT_ATTR_FIELD_CTX_ADDR_LEN |
-                         UCC_CONTEXT_ATTR_FIELD_WORK_BUFFER_SIZE)
-    attr = Ref(ucc_context_attr_t(mask, UCC_CONTEXT_EXCLUSIVE, UCC_NO_SYNC_COLLECTIVES,
-                                  C_NULL, 0, 0))
+    mask=UCC_CONTEXT_ATTR_FIELD_TYPE | UCC_CONTEXT_ATTR_FIELD_SYNC_TYPE |
+         UCC_CONTEXT_ATTR_FIELD_CTX_ADDR | UCC_CONTEXT_ATTR_FIELD_CTX_ADDR_LEN |
+         UCC_CONTEXT_ATTR_FIELD_WORK_BUFFER_SIZE)
+    attr = Ref(
+        ucc_context_attr_t(mask, UCC_CONTEXT_EXCLUSIVE, UCC_NO_SYNC_COLLECTIVES,
+            C_NULL, 0, 0),
+    )
     ucc_context_get_attr(ctx, attr)
     return attr[]
 end
@@ -160,8 +171,10 @@ The serialized address of `ctx`, which can be exchanged to create teams without
 an OOB.
 """
 function address(ctx::Context)
-    attr = attributes(ctx; mask=UCC_CONTEXT_ATTR_FIELD_CTX_ADDR |
-                                UCC_CONTEXT_ATTR_FIELD_CTX_ADDR_LEN)
+    attr = attributes(
+        ctx; mask=UCC_CONTEXT_ATTR_FIELD_CTX_ADDR |
+                  UCC_CONTEXT_ATTR_FIELD_CTX_ADDR_LEN
+    )
     return copy(unsafe_wrap(Array, Ptr{UInt8}(attr.ctx_addr), attr.ctx_addr_len))
 end
 
@@ -170,5 +183,8 @@ end
 
 Size in bytes of the global work buffer that one-sided collectives require.
 """
-work_buffer_size(ctx::Context) =
-    Int(attributes(ctx; mask=UCC_CONTEXT_ATTR_FIELD_WORK_BUFFER_SIZE).global_work_buffer_size)
+function work_buffer_size(ctx::Context)
+    return Int(
+        attributes(ctx; mask=UCC_CONTEXT_ATTR_FIELD_WORK_BUFFER_SIZE).global_work_buffer_size
+    )
+end

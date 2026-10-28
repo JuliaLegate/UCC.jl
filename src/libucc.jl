@@ -42,9 +42,10 @@ struct UCCError <: Exception
     code::ucc_status_t
 end
 
-Base.showerror(io::IO, err::UCCError) =
-    print(io, "UCCError: ", unsafe_string(ucc_status_string(err.code)),
-          " (code ", Int(err.code), ", ", err.code, ")")
+function Base.showerror(io::IO, err::UCCError)
+    return print(io, "UCCError: ", unsafe_string(ucc_status_string(err.code)),
+        " (code ", Int(err.code), ", ", err.code, ")")
+end
 
 """
     check(status)
@@ -220,9 +221,11 @@ end
 const ucc_generic_dt_ops_t = ucc_generic_dt_ops
 
 function ucc_dt_create_generic(ops, context, datatype_p)
-    check(@ccall libucc.ucc_dt_create_generic(ops::Ptr{ucc_generic_dt_ops_t},
-                                              context::Ptr{Cvoid},
-                                              datatype_p::Ptr{ucc_datatype_t})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_dt_create_generic(ops::Ptr{ucc_generic_dt_ops_t},
+            context::Ptr{Cvoid},
+            datatype_p::Ptr{ucc_datatype_t})::ucc_status_t
+    )
 end
 
 function ucc_dt_destroy(datatype)
@@ -292,8 +295,10 @@ end
 const ucc_lib_attr_t = ucc_lib_attr
 
 function ucc_lib_config_read(env_prefix, filename, config)
-    check(@ccall libucc.ucc_lib_config_read(env_prefix::Cstring, filename::Cstring,
-                                            config::Ptr{ucc_lib_config_h})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_lib_config_read(env_prefix::Cstring, filename::Cstring,
+            config::Ptr{ucc_lib_config_h})::ucc_status_t
+    )
 end
 
 function ucc_lib_config_release(config)
@@ -302,18 +307,20 @@ end
 
 function ucc_lib_config_print(config, stream, title, print_flags)
     @ccall libucc.ucc_lib_config_print(config::ucc_lib_config_h, stream::Ptr{Cvoid},
-                                       title::Cstring,
-                                       print_flags::ucc_config_print_flags_t)::Cvoid
+        title::Cstring,
+        print_flags::ucc_config_print_flags_t)::Cvoid
 end
 
 function ucc_lib_config_modify(config, name, value)
-    check(@ccall libucc.ucc_lib_config_modify(config::ucc_lib_config_h, name::Cstring,
-                                              value::Cstring)::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_lib_config_modify(config::ucc_lib_config_h, name::Cstring,
+            value::Cstring)::ucc_status_t
+    )
 end
 
 function ucc_get_version(major_version, minor_version, release_number)
     @ccall libucc.ucc_get_version(major_version::Ptr{Cuint}, minor_version::Ptr{Cuint},
-                                  release_number::Ptr{Cuint})::Cvoid
+        release_number::Ptr{Cuint})::Cvoid
 end
 
 function ucc_get_version_string()
@@ -321,24 +328,29 @@ function ucc_get_version_string()
 end
 
 function ucc_init_version(api_major_version, api_minor_version, params, config, lib_p)
-    check(@ccall libucc.ucc_init_version(api_major_version::Cuint,
-                                         api_minor_version::Cuint,
-                                         params::Ptr{ucc_lib_params_t},
-                                         config::ucc_lib_config_h,
-                                         lib_p::Ptr{ucc_lib_h})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_init_version(api_major_version::Cuint,
+            api_minor_version::Cuint,
+            params::Ptr{ucc_lib_params_t},
+            config::ucc_lib_config_h,
+            lib_p::Ptr{ucc_lib_h})::ucc_status_t
+    )
 end
 
 # `static inline` in ucc.h
-ucc_init(params, config, lib_p) =
-    ucc_init_version(UCC_API_MAJOR, UCC_API_MINOR, params, config, lib_p)
+function ucc_init(params, config, lib_p)
+    return ucc_init_version(UCC_API_MAJOR, UCC_API_MINOR, params, config, lib_p)
+end
 
 function ucc_finalize(lib_p)
-    check(@ccall libucc.ucc_finalize(lib_p::ucc_lib_h)::ucc_status_t)
+    return check(@ccall libucc.ucc_finalize(lib_p::ucc_lib_h)::ucc_status_t)
 end
 
 function ucc_lib_get_attr(lib_p, lib_attr)
-    check(@ccall libucc.ucc_lib_get_attr(lib_p::ucc_lib_h,
-                                         lib_attr::Ptr{ucc_lib_attr_t})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_lib_get_attr(lib_p::ucc_lib_h,
+            lib_attr::Ptr{ucc_lib_attr_t})::ucc_status_t
+    )
 end
 
 #
@@ -411,8 +423,10 @@ end
 const ucc_context_attr_t = ucc_context_attr
 
 function ucc_context_config_read(lib_handle, filename, config)
-    check(@ccall libucc.ucc_context_config_read(lib_handle::ucc_lib_h, filename::Cstring,
-                                                config::Ptr{ucc_context_config_h})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_context_config_read(lib_handle::ucc_lib_h, filename::Cstring,
+            config::Ptr{ucc_context_config_h})::ucc_status_t
+    )
 end
 
 function ucc_context_config_release(config)
@@ -421,34 +435,40 @@ end
 
 function ucc_context_config_print(config, stream, title, print_flags)
     @ccall libucc.ucc_context_config_print(config::ucc_context_config_h, stream::Ptr{Cvoid},
-                                           title::Cstring,
-                                           print_flags::ucc_config_print_flags_t)::Cvoid
+        title::Cstring,
+        print_flags::ucc_config_print_flags_t)::Cvoid
 end
 
 function ucc_context_config_modify(config, component, name, value)
-    check(@ccall libucc.ucc_context_config_modify(config::ucc_context_config_h,
-                                                  component::Cstring, name::Cstring,
-                                                  value::Cstring)::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_context_config_modify(config::ucc_context_config_h,
+            component::Cstring, name::Cstring,
+            value::Cstring)::ucc_status_t
+    )
 end
 
 function ucc_context_create(lib_handle, params, config, context)
-    check(@ccall libucc.ucc_context_create(lib_handle::ucc_lib_h,
-                                           params::Ptr{ucc_context_params_t},
-                                           config::ucc_context_config_h,
-                                           context::Ptr{ucc_context_h})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_context_create(lib_handle::ucc_lib_h,
+            params::Ptr{ucc_context_params_t},
+            config::ucc_context_config_h,
+            context::Ptr{ucc_context_h})::ucc_status_t
+    )
 end
 
 function ucc_context_progress(context)
-    check(@ccall libucc.ucc_context_progress(context::ucc_context_h)::ucc_status_t)
+    return check(@ccall libucc.ucc_context_progress(context::ucc_context_h)::ucc_status_t)
 end
 
 function ucc_context_destroy(context)
-    check(@ccall libucc.ucc_context_destroy(context::ucc_context_h)::ucc_status_t)
+    return check(@ccall libucc.ucc_context_destroy(context::ucc_context_h)::ucc_status_t)
 end
 
 function ucc_context_get_attr(context, context_attr)
-    check(@ccall libucc.ucc_context_get_attr(context::ucc_context_h,
-                                             context_attr::Ptr{ucc_context_attr_t})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_context_get_attr(context::ucc_context_h,
+            context_attr::Ptr{ucc_context_attr_t})::ucc_status_t
+    )
 end
 
 #
@@ -537,8 +557,9 @@ struct ucc_ep_map_t
     u::NTuple{2,UInt64}
 end
 
-ucc_ep_map_t(type, ep_num, x::Union{ucc_ep_map_strided,ucc_ep_map_array,ucc_ep_map_cb}) =
-    ucc_ep_map_t(type, ep_num, reinterpret(NTuple{2,UInt64}, x))
+function ucc_ep_map_t(type, ep_num, x::Union{ucc_ep_map_strided,ucc_ep_map_array,ucc_ep_map_cb})
+    return ucc_ep_map_t(type, ep_num, reinterpret(NTuple{2,UInt64}, x))
+end
 ucc_ep_map_t(type, ep_num) = ucc_ep_map_t(type, ep_num, (UInt64(0), UInt64(0)))
 
 struct ucc_team_params
@@ -573,29 +594,35 @@ end
 const ucc_team_attr_t = ucc_team_attr
 
 function ucc_team_create_post(contexts, num_contexts, team_params, new_team)
-    check(@ccall libucc.ucc_team_create_post(contexts::Ptr{ucc_context_h},
-                                             num_contexts::UInt32,
-                                             team_params::Ptr{ucc_team_params_t},
-                                             new_team::Ptr{ucc_team_h})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_team_create_post(contexts::Ptr{ucc_context_h},
+            num_contexts::UInt32,
+            team_params::Ptr{ucc_team_params_t},
+            new_team::Ptr{ucc_team_h})::ucc_status_t
+    )
 end
 
 function ucc_team_create_test(team)
-    check(@ccall libucc.ucc_team_create_test(team::ucc_team_h)::ucc_status_t)
+    return check(@ccall libucc.ucc_team_create_test(team::ucc_team_h)::ucc_status_t)
 end
 
 function ucc_team_destroy(team)
-    check(@ccall libucc.ucc_team_destroy(team::ucc_team_h)::ucc_status_t)
+    return check(@ccall libucc.ucc_team_destroy(team::ucc_team_h)::ucc_status_t)
 end
 
 function ucc_team_get_attr(team, team_attr)
-    check(@ccall libucc.ucc_team_get_attr(team::ucc_team_h,
-                                          team_attr::Ptr{ucc_team_attr_t})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_team_get_attr(team::ucc_team_h,
+            team_attr::Ptr{ucc_team_attr_t})::ucc_status_t
+    )
 end
 
 function ucc_team_create_from_parent(my_ep, included, parent_team, new_team)
-    check(@ccall libucc.ucc_team_create_from_parent(my_ep::UInt64, included::UInt32,
-                                                    parent_team::ucc_team_h,
-                                                    new_team::Ptr{ucc_team_h})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_team_create_from_parent(my_ep::UInt64, included::UInt32,
+            parent_team::ucc_team_h,
+            new_team::Ptr{ucc_team_h})::ucc_status_t
+    )
 end
 
 #
@@ -653,9 +680,13 @@ function ucc_coll_buffer_info_u(x::Union{ucc_coll_buffer_info_t,ucc_coll_buffer_
 end
 function Base.getproperty(u::ucc_coll_buffer_info_u, f::Symbol)
     f === :data && return getfield(u, :data)
-    T = f === :info ? ucc_coll_buffer_info_t :
-        f === :info_v ? ucc_coll_buffer_info_v_t :
+    T = if f === :info
+        ucc_coll_buffer_info_t
+    elseif f === :info_v
+        ucc_coll_buffer_info_v_t
+    else
         error("type ucc_coll_buffer_info_u has no field $f")
+    end
     r = Ref(u)
     GC.@preserve r unsafe_load(Ptr{T}(Base.unsafe_convert(Ptr{ucc_coll_buffer_info_u}, r)))
 end
@@ -703,19 +734,23 @@ end
 const ucc_coll_args_t = ucc_coll_args
 
 function ucc_collective_init(coll_args, request, team)
-    check(@ccall libucc.ucc_collective_init(coll_args::Ptr{ucc_coll_args_t},
-                                            request::Ptr{ucc_coll_req_h},
-                                            team::ucc_team_h)::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_collective_init(coll_args::Ptr{ucc_coll_args_t},
+            request::Ptr{ucc_coll_req_h},
+            team::ucc_team_h)::ucc_status_t
+    )
 end
 
 function ucc_collective_post(request)
-    check(@ccall libucc.ucc_collective_post(request::ucc_coll_req_h)::ucc_status_t)
+    return check(@ccall libucc.ucc_collective_post(request::ucc_coll_req_h)::ucc_status_t)
 end
 
 function ucc_collective_init_and_post(coll_args, request, team)
-    check(@ccall libucc.ucc_collective_init_and_post(coll_args::Ptr{ucc_coll_args_t},
-                                                     request::Ptr{ucc_coll_req_h},
-                                                     team::ucc_team_h)::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_collective_init_and_post(coll_args::Ptr{ucc_coll_args_t},
+            request::Ptr{ucc_coll_req_h},
+            team::ucc_team_h)::ucc_status_t
+    )
 end
 
 # `static inline` in ucc.h: returns request->status without checking it.
@@ -723,7 +758,7 @@ ucc_collective_test(request::ucc_coll_req_h) =
     unsafe_load(Ptr{ucc_status_t}(request))
 
 function ucc_collective_finalize(request)
-    check(@ccall libucc.ucc_collective_finalize(request::ucc_coll_req_h)::ucc_status_t)
+    return check(@ccall libucc.ucc_collective_finalize(request::ucc_coll_req_h)::ucc_status_t)
 end
 
 #
@@ -762,12 +797,14 @@ end
 const ucc_ee_params_t = ucc_ee_params
 
 function ucc_ee_create(team, params, ee)
-    check(@ccall libucc.ucc_ee_create(team::ucc_team_h, params::Ptr{ucc_ee_params_t},
-                                      ee::Ptr{ucc_ee_h})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_ee_create(team::ucc_team_h, params::Ptr{ucc_ee_params_t},
+            ee::Ptr{ucc_ee_h})::ucc_status_t
+    )
 end
 
 function ucc_ee_destroy(ee)
-    check(@ccall libucc.ucc_ee_destroy(ee::ucc_ee_h)::ucc_status_t)
+    return check(@ccall libucc.ucc_ee_destroy(ee::ucc_ee_h)::ucc_status_t)
 end
 
 # Returns UCC_OK if an event was retrieved, UCC_ERR_NOT_FOUND (an error code)
@@ -777,20 +814,22 @@ function ucc_ee_get_event(ee, ev)
 end
 
 function ucc_ee_ack_event(ee, ev)
-    check(@ccall libucc.ucc_ee_ack_event(ee::ucc_ee_h, ev::Ptr{ucc_ev_t})::ucc_status_t)
+    return check(@ccall libucc.ucc_ee_ack_event(ee::ucc_ee_h, ev::Ptr{ucc_ev_t})::ucc_status_t)
 end
 
 function ucc_ee_set_event(ee, ev)
-    check(@ccall libucc.ucc_ee_set_event(ee::ucc_ee_h, ev::Ptr{ucc_ev_t})::ucc_status_t)
+    return check(@ccall libucc.ucc_ee_set_event(ee::ucc_ee_h, ev::Ptr{ucc_ev_t})::ucc_status_t)
 end
 
 function ucc_ee_wait(ee, ev)
-    check(@ccall libucc.ucc_ee_wait(ee::ucc_ee_h, ev::Ptr{ucc_ev_t})::ucc_status_t)
+    return check(@ccall libucc.ucc_ee_wait(ee::ucc_ee_h, ev::Ptr{ucc_ev_t})::ucc_status_t)
 end
 
 function ucc_collective_triggered_post(ee, ee_event)
-    check(@ccall libucc.ucc_collective_triggered_post(ee::ucc_ee_h,
-                                                      ee_event::Ptr{ucc_ev_t})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_collective_triggered_post(ee::ucc_ee_h,
+            ee_event::Ptr{ucc_ev_t})::ucc_status_t
+    )
 end
 
 #
@@ -806,14 +845,16 @@ end
 end
 
 function ucc_mem_map(context, mode, params, memh_size, memh)
-    check(@ccall libucc.ucc_mem_map(context::ucc_context_h, mode::ucc_mem_map_mode_t,
-                                    params::Ptr{ucc_mem_map_params_t},
-                                    memh_size::Ptr{Csize_t},
-                                    memh::Ptr{ucc_mem_map_mem_h})::ucc_status_t)
+    return check(
+        @ccall libucc.ucc_mem_map(context::ucc_context_h, mode::ucc_mem_map_mode_t,
+            params::Ptr{ucc_mem_map_params_t},
+            memh_size::Ptr{Csize_t},
+            memh::Ptr{ucc_mem_map_mem_h})::ucc_status_t
+    )
 end
 
 function ucc_mem_unmap(memh)
-    check(@ccall libucc.ucc_mem_unmap(memh::Ptr{ucc_mem_map_mem_h})::ucc_status_t)
+    return check(@ccall libucc.ucc_mem_unmap(memh::Ptr{ucc_mem_map_mem_h})::ucc_status_t)
 end
 
 # export all UCC_* / ucc_* symbols, like the Clang.jl-generated NCCL bindings
