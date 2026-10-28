@@ -204,7 +204,7 @@ end
         script = joinpath(@__DIR__, "mpi_collectives.jl")
         project = Base.active_project()
         cmd = `$(MPI.mpiexec()) -n $nprocs $(Base.julia_cmd()) --startup-file=no --project=$project $script`
-        withenv("UCC_TEST_CUDA" => string(CUDA.functional())) do
+        withenv("UCC_TEST_CUDA" => string(CUDA.functional()), "JULIA_CUDA_MEMORY_POOL" => "none") do
             @test success(pipeline(cmd; stdout, stderr))
         end
     end
