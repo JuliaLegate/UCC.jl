@@ -206,7 +206,13 @@ function Library(; thread_mode::Union{Nothing,Symbol,ucc_thread_mode_t}=nothing,
     finally
         config === nothing && release(cfg)
     end
-    return finalizer(_defer, Library(ref[], 0, false))
+    lib = finalizer(_defer, Library(ref[], 0, false))
+    got = attributes(lib).thread_mode
+    if Int(got) < Int(params[].thread_mode)  # UCC may grant less than requested
+        destroy(lib)
+        throw(ArgumentError("UCC provides thread mode $got, not $(params[].thread_mode)"))
+    end
+    return lib
 end
 
 Base.unsafe_convert(::Type{ucc_lib_h}, lib::Library) = lib.handle
