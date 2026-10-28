@@ -51,6 +51,8 @@ function time_allreduce(nbytes)
     end
 
     @assert CUDA.@allowscalar(y[1]) == nranks
+    CUDA.unsafe_free!(x)  # don't wait for GC; large sizes need the memory
+    CUDA.unsafe_free!(y)
     return MPI.Allreduce(t / iters, max, comm)
 end
 
