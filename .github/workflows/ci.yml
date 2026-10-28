@@ -43,4 +43,5 @@ jobs:
       - name: Run tests
         env:
           JULIA_NUM_THREADS: 4  # in-process ranks run on separate threads
+          UCX_TLS: self,sm  # single node; some runners have NICs UCX can't open
         run: julia --project -e 'using Pkg; Pkg.test()'
