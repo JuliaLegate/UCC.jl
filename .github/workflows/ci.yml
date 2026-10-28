@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+    paths: &paths
+      - 'src/**'
+      - 'ext/**'
+      - 'test/**'
+      - 'Project.toml'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    paths: *paths
+
+jobs:
+  test:
+    name: Julia ${{ matrix.julia }} - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        julia:
+          - '1.10'
+          - '1.11'
+          - '1.12'
+          - '1.13'
+        os:
+          - ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia }}
+
+      - uses: julia-actions/cache@v2
+
+      - name: Run tests
+        env:
+          JULIA_NUM_THREADS: 4  # in-process ranks run on separate threads
+          UCX_TLS: self,sm  # single node; some runners have NICs UCX can't open
+        run: julia --project -e 'using Pkg; Pkg.test()'
