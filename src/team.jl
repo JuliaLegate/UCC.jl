@@ -108,24 +108,6 @@ function _free(team::Team)
 end
 
 """
-    UCC.split(parent::Team, included::Bool) :: Union{Team,Nothing}
-
-Create a sub-team of `parent` containing the ranks that pass `included=true`,
-without an OOB. Must be called collectively by all ranks of `parent`; ranks
-that are not included get `nothing`.
-
-# External links
-- `ucc_team_create_from_parent`
-"""
-function split(parent::Team, included::Bool)
-    ref = Ref{ucc_team_h}(C_NULL)
-    ucc_team_create_from_parent(parent.rank, included, _alive(parent), ref)
-    included || return nothing
-    _team_create_wait(parent.ctx, ref[])
-    return _team(ref[], parent.ctx, nothing)
-end
-
-"""
     UCC.attributes(team::Team) :: LibUCC.ucc_team_attr_t
 
 Query the attributes of `team`.
