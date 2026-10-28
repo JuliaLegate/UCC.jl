@@ -5,7 +5,7 @@ Communication library, modeled on [NCCL.jl](https://github.com/JuliaGPU/NCCL.jl)
 Collectives work on host `Array`s and on CUDA `CuArray`s.
 
 - `UCC`: `Library`, `Context`, `Team` (≈ communicator) and the collectives.
-- `UCC.LibUCC`: raw bindings for the full UCC 1.8 C API.
+- `UCC.LibUCC`: low-level bindings to the UCC C API.
 
 ## Installation
 
