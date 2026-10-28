@@ -1,0 +1,24 @@
+name: Version Check
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  version-check:
+    name: Version Check
+    if: ${{ !contains(toJSON(github.event), '[skip ci]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Project.toml version must increase over main
+        run: |
+          version() { sed -n 's/^version = "\(.*\)"/\1/p'; }
+          old=$(git show origin/main:Project.toml 2>/dev/null | version)
+          old=${old:-0.0.0}
+          new=$(version < Project.toml)
+          echo "main=$old pr=$new"
+          [ "$old" != "$new" ] && [ "$(printf '%s\n' "$old" "$new" | sort -V | tail -1)" = "$new" ]

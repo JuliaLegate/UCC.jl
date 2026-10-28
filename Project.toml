@@ -1,7 +1,7 @@
 name = "UCC"
 uuid = "0824c2d4-b803-424a-b4f8-af0271084755"
 version = "0.1.0"
-authors = ["""krasow <krasow@u.northwestern.edu\n>"""]
+authors = ["krasow <krasow@u.northwestern.edu>"]
 
 [deps]
 CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"
