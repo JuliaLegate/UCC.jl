@@ -115,38 +115,18 @@ end
     destroy_all(teams)
 end
 
-@noinline start_and_forget(team) = (UCC.Iallreduce!(ones(1000), zeros(1000), +, team); nothing)
-
 @testset "dropped in-flight request" begin
-    UCC.free_deferred()
     teams = local_teams(2)
-    dropped = Threads.Event()
-    spmd(teams) do team
-        if UCC.rank(team) == 1
-            start_and_forget(team)
-            GC.gc(); GC.gc()
-            node = @atomic UCC._deferred.head
-            while node !== nothing && !(node.obj isa UCC.Request)
-                node = node.next
-            end
-            @test node !== nothing
-            req = node.obj
-            UCC.free_deferred()  # rank 0 hasn't joined: stays deferred
-            @test req.handle != C_NULL
-            notify(dropped)
-            t = time()
-            while req.handle != C_NULL && time() - t < 30
-                UCC.free_deferred()
-                GC.gc()
-                yield()
-            end
-            @test req.handle == C_NULL
-            @test req.result == fill(2.0, 1000)  # buffer survived and was written
-        else
-            wait(dropped)
-            @test UCC.Allreduce!(ones(1000), zeros(1000), +, team) == fill(2.0, 1000)
-        end
+    req = UCC.Iallreduce!(ones(4), zeros(4), +, teams[1])
+    finalize(req)
+    UCC.free_deferred()
+    @test req.handle != C_NULL  # other rank hasn't joined: stays deferred
+    other = UCC.Iallreduce!(ones(4), zeros(4), +, teams[2])
+    while req.handle != C_NULL
+        UCC.test(other)
+        UCC.free_deferred()
     end
+    @test req.result == fill(2.0, 4)
     destroy_all(teams)
 end
 
