@@ -21,3 +21,11 @@ UCC.Allreduce!(x, +, team)
   post it with [`UCC.triggered_post!`](@ref) on an
   [`ExecutionEngine`](@ref UCC.ExecutionEngine) for a `CuStream`.
 - Some reductions only run on the GPU, e.g. `Float16`.
+
+::: warning CUDA.jl memory pool
+UCC's CUDA transport (`tl_cuda`) shares buffers between ranks over CUDA IPC,
+which does not support CUDA.jl's default memory pool. Collectives it handles
+then fail with `UCC_ERR_INVALID_PARAM`. Either disable the pool with
+`JULIA_CUDA_MEMORY_POOL=none`, or disable the transport with
+`UCC_CL_BASIC_TLS=^cuda`.
+:::
