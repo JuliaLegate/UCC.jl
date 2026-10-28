@@ -22,7 +22,7 @@ end
 
 function ExecutionEngine(team::Team, ee_type::ucc_ee_type_t, ee_context::Ptr,
                          ee_context_size::Integer=0; root=nothing)
-    @atomic(team.destroyed) && throw(ArgumentError("team has been destroyed"))
+    _alive(team)
     params = Ref(ucc_ee_params_t(ee_type, ee_context, ee_context_size))
     ref = Ref{ucc_ee_h}(C_NULL)
     ucc_ee_create(team, params, ref)
@@ -53,7 +53,7 @@ already enqueued on `ee` has completed. Complete it with `wait(req)` as usual.
 function triggered_post!(ee::ExecutionEngine, req::Request;
                          ev_type::ucc_event_type_t=UCC_EVENT_COMPUTE_COMPLETE)
     req.handle == C_NULL && throw(ArgumentError("request has been freed"))
-    @atomic(ee.destroyed) && throw(ArgumentError("execution engine has been destroyed"))
+    _alive(ee)
     ev = Ref(ucc_ev_t(ev_type, C_NULL, 0, req.handle))
     ucc_collective_triggered_post(ee, ev)
     if req.ee !== ee

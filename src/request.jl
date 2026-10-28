@@ -144,7 +144,7 @@ function _collective(team::Team, coll_type::ucc_coll_type_t;
                      persistent::Bool=false,
                      timeout::Union{Nothing,Real}=nothing,
                      tag::Union{Nothing,Integer}=nothing)
-    @atomic(team.destroyed) && throw(ArgumentError("team has been destroyed"))
+    _alive(team)
     0 <= root < team.size || throw(ArgumentError("root must be in [0, $(team.size))"))
     mask = UCC_COLL_ARGS_FIELD_FLAGS
     flags |= UCC_COLL_ARGS_FLAG_COUNT_64BIT | UCC_COLL_ARGS_FLAG_DISPLACEMENTS_64BIT

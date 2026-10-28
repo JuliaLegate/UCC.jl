@@ -74,6 +74,7 @@ end
     UCC.destroy(ctx)
     @test ctx.lib.handle == C_NULL  # default library is destroyed with its context
     @test_throws ArgumentError UCC.Barrier(team)
+    @test_throws ArgumentError UCC.Team(ctx)
 end
 
 @testset "deferred destruction" begin
@@ -90,6 +91,7 @@ end
     ctx = UCC.Context(; lib)
     UCC.destroy(lib)
     @test lib.handle != C_NULL
+    @test_throws ArgumentError UCC.Context(; lib)
     UCC.destroy(ctx)
     @test lib.handle == C_NULL
 end

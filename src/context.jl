@@ -20,7 +20,7 @@ end
 
 function ContextConfig(lib::Library; filename::Union{Nothing,AbstractString}=nothing)
     ref = Ref{ucc_context_config_h}(C_NULL)
-    ucc_context_config_read(lib, _cstr(filename), ref)
+    ucc_context_config_read(_alive(lib), _cstr(filename), ref)
     return finalizer(_defer, ContextConfig(ref[], lib))
 end
 
@@ -103,7 +103,7 @@ function Context(oob::Union{Nothing,AbstractOOB}=nothing;
     cfg = config === nothing ? ContextConfig(lib) : config
     ref = Ref{ucc_context_h}(C_NULL)
     try
-        GC.@preserve oob ucc_context_create(lib, params, cfg, ref)
+        GC.@preserve oob ucc_context_create(_alive(lib), params, cfg, ref)
     finally
         config === nothing && release(cfg)
     end
