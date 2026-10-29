@@ -1,0 +1,9 @@
+[deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+UCC = "0824c2d4-b803-424a-b4f8-af0271084755"
+UCC_jll = "00126aba-537c-58fc-8007-2fc5e2f5667b"
+
+[sources]
+UCC = {path = ".."}

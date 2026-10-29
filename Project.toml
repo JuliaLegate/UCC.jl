@@ -1,0 +1,25 @@
+name = "UCC"
+uuid = "0824c2d4-b803-424a-b4f8-af0271084755"
+version = "1.8.0"
+authors = ["krasow <krasow@u.northwestern.edu>", "Ethan Meitz <emeitz@andrew.cmu.edu>"]
+
+[deps]
+CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"
+JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
+UCC_jll = "00126aba-537c-58fc-8007-2fc5e2f5667b"
+
+[weakdeps]
+CUDACore = "bd0ed864-bdfe-4181-a5ed-ce625a5fdea2"
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+
+[extensions]
+UCCCUDAExt = "CUDACore"
+UCCMPIExt = "MPI"
+
+[compat]
+CEnum = "0.5.0"
+CUDACore = "6"
+JuliaFormatter = "2.14.0"
+MPI = "0.20"
+UCC_jll = "1.8.0"
+julia = "1.10"
