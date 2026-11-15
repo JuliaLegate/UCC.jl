@@ -5,4 +5,5 @@ docs/package-lock.json
 docs/src/.vitepress/cache/
 docs/src/.vitepress/dist/
 benchmark/results.csv
+benchmark/alltoallv.csv
 benchmark/plots/
