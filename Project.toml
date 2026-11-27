@@ -1,6 +1,6 @@
 name = "UCC"
 uuid = "0824c2d4-b803-424a-b4f8-af0271084755"
-version = "1.8.0"
+version = "1.9.0"
 authors = ["krasow <krasow@u.northwestern.edu>", "Ethan Meitz <emeitz@andrew.cmu.edu>"]
 
 [deps]
@@ -21,5 +21,5 @@ CEnum = "0.5.0"
 CUDACore = "6"
 JuliaFormatter = "2.14.0"
 MPI = "0.20"
-UCC_jll = "1.8.0"
+UCC_jll = "1.9.0"
 julia = "1.10"
